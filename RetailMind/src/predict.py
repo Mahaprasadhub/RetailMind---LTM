@@ -1,23 +1,52 @@
 """Load the saved churn pipeline and predict churn for one customer."""
 
+import json
+import sys
+from pathlib import Path
+
 import joblib
 import pandas as pd
 
-from .train import MODEL_PATH
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from src.data_preprocessing import PROJECT_ROOT
+    from src.train import MODEL_PATH
+else:
+    from .data_preprocessing import PROJECT_ROOT
+    from .train import MODEL_PATH
 
 
-def predict(customer_data):
-    """Return a churn label, probability, and simple risk category."""
+MODEL_DIRECTORY = PROJECT_ROOT / "models"
+CHAMPION_MODEL_PATH = MODEL_DIRECTORY / "champion_model.joblib"
+CHAMPION_METADATA_PATH = MODEL_DIRECTORY / "champion_metadata.json"
+
+
+def predict(customer_data, model="champion"):
+    """Return a churn prediction using the champion or Day 1 baseline model."""
     if not isinstance(customer_data, dict):
         raise TypeError("customer_data must be a dictionary of feature values.")
     if any(not isinstance(column, str) for column in customer_data):
         raise ValueError("All customer_data keys must be feature names (strings).")
-    if not MODEL_PATH.is_file():
+    model_paths = {
+        "champion": CHAMPION_MODEL_PATH,
+        "logistic_regression": MODEL_PATH,
+    }
+    if not isinstance(model, str) or model not in model_paths:
+        raise ValueError(
+            "model must be 'champion' or 'logistic_regression'."
+        )
+    model_path = model_paths[model]
+    if not model_path.is_file():
+        required_command = (
+            "python -m src.train_models and python -m src.compare_models"
+            if model == "champion"
+            else "python -m src.train"
+        )
         raise FileNotFoundError(
-            f"Trained model not found: {MODEL_PATH}. Run `python -m src.train` first."
+            f"Requested model not found: {model_path}. Run `{required_command}` first."
         )
 
-    pipeline = joblib.load(MODEL_PATH)
+    pipeline = joblib.load(model_path)
     expected_columns = list(pipeline.feature_names_in_)
     provided_columns = set(customer_data)
     expected_column_set = set(expected_columns)
@@ -50,8 +79,25 @@ def predict(customer_data):
         customer_frame[column] = converted_values
 
     predicted_class = int(pipeline.predict(customer_frame)[0])
-    churn_probability = float(pipeline.predict_proba(customer_frame)[0, 1])
+    class_labels = list(pipeline.named_steps["classifier"].classes_)
+    if 1 not in class_labels:
+        raise ValueError("The fitted classifier does not contain the churn-positive class.")
+    positive_class_index = class_labels.index(1)
+    churn_probability = float(
+        pipeline.predict_proba(customer_frame)[0, positive_class_index]
+    )
     prediction = "Yes" if predicted_class == 1 else "No"
+    if model == "champion":
+        if not CHAMPION_METADATA_PATH.is_file():
+            raise FileNotFoundError(
+                f"Champion metadata not found: {CHAMPION_METADATA_PATH}. "
+                "Run `python -m src.compare_models` to create it."
+            )
+        with CHAMPION_METADATA_PATH.open("r", encoding="utf-8") as metadata_file:
+            model_used = json.load(metadata_file)["name"]
+    else:
+        model_used = "Logistic Regression"
+
     if churn_probability >= 0.70:
         risk_status = "High Risk"
     elif churn_probability >= 0.40:
@@ -63,10 +109,43 @@ def predict(customer_data):
         "prediction": prediction,
         "churn_probability": churn_probability,
         "status": risk_status,
+        "model_used": model_used,
     }
 
 
+def _run_demo():
+    sample_customer = {
+        "gender": "Female",
+        "SeniorCitizen": 0,
+        "Partner": "Yes",
+        "Dependents": "No",
+        "tenure": 1,
+        "PhoneService": "No",
+        "MultipleLines": "No phone service",
+        "InternetService": "DSL",
+        "OnlineSecurity": "No",
+        "OnlineBackup": "Yes",
+        "DeviceProtection": "No",
+        "TechSupport": "No",
+        "StreamingTV": "No",
+        "StreamingMovies": "No",
+        "Contract": "Month-to-month",
+        "PaperlessBilling": "Yes",
+        "PaymentMethod": "Electronic check",
+        "MonthlyCharges": 29.85,
+        "TotalCharges": 29.85,
+    }
+
+    try:
+        result = predict(sample_customer)
+    except FileNotFoundError as error:
+        raise SystemExit(str(error)) from error
+
+    print(f"Prediction: {result['prediction']}")
+    print(f"Churn probability: {result['churn_probability']:.4f}")
+    print(f"Risk status: {result['status']}")
+    print(f"Model used: {result['model_used']}")
+
+
 if __name__ == "__main__":
-    raise SystemExit(
-        "Import predict() and pass a dictionary containing all model feature columns."
-    )
+    _run_demo()

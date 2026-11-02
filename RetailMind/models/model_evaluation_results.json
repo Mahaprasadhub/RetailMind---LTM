@@ -1,0 +1,191 @@
+{
+  "dataset": "C:\\Users\\KIIT\\Documents\\ReatailMind LTM\\RetailMind\\data\\WA_Fn-UseC_-Telco-Customer-Churn.csv",
+  "split": {
+    "test_size": 0.2,
+    "random_state": 42,
+    "stratified": true,
+    "train_rows": 5634,
+    "test_rows": 1409,
+    "test_index_sha256": "a913d7336d00dac6936dddbf10d62cfccf7667b0538efa63a224b00c85d8afcb"
+  },
+  "positive_class": "Churn = Yes (label 1)",
+  "models": {
+    "Logistic Regression": {
+      "artifact": "churn_pipeline.joblib",
+      "accuracy": 0.8055358410220014,
+      "precision": 0.6572327044025157,
+      "recall": 0.5588235294117647,
+      "roc_auc": 0.8418610659019866,
+      "confusion_matrix": [
+        [
+          926,
+          109
+        ],
+        [
+          165,
+          209
+        ]
+      ],
+      "classification_report": {
+        "No": {
+          "precision": 0.8487626031164069,
+          "recall": 0.8946859903381642,
+          "f1-score": 0.8711194731890874,
+          "support": 1035.0
+        },
+        "Yes": {
+          "precision": 0.6572327044025157,
+          "recall": 0.5588235294117647,
+          "f1-score": 0.6040462427745664,
+          "support": 374.0
+        },
+        "accuracy": 0.8055358410220014,
+        "macro avg": {
+          "precision": 0.7529976537594614,
+          "recall": 0.7267547598749644,
+          "f1-score": 0.7375828579818269,
+          "support": 1409.0
+        },
+        "weighted avg": {
+          "precision": 0.7979235810305337,
+          "recall": 0.8055358410220014,
+          "f1-score": 0.8002284950662835,
+          "support": 1409.0
+        }
+      }
+    },
+    "Decision Tree": {
+      "artifact": "decision_tree.joblib",
+      "accuracy": 0.7317246273953159,
+      "precision": 0.4945652173913043,
+      "recall": 0.48663101604278075,
+      "roc_auc": 0.6536955230049859,
+      "confusion_matrix": [
+        [
+          849,
+          186
+        ],
+        [
+          192,
+          182
+        ]
+      ],
+      "classification_report": {
+        "No": {
+          "precision": 0.8155619596541787,
+          "recall": 0.8202898550724638,
+          "f1-score": 0.8179190751445087,
+          "support": 1035.0
+        },
+        "Yes": {
+          "precision": 0.4945652173913043,
+          "recall": 0.48663101604278075,
+          "f1-score": 0.49056603773584906,
+          "support": 374.0
+        },
+        "accuracy": 0.7317246273953159,
+        "macro avg": {
+          "precision": 0.6550635885227415,
+          "recall": 0.6534604355576222,
+          "f1-score": 0.6542425564401788,
+          "support": 1409.0
+        },
+        "weighted avg": {
+          "precision": 0.730357714369356,
+          "recall": 0.7317246273953159,
+          "f1-score": 0.7310276372517914,
+          "support": 1409.0
+        }
+      }
+    },
+    "Random Forest": {
+      "artifact": "random_forest.joblib",
+      "accuracy": 0.7679205110007097,
+      "precision": 0.5566265060240964,
+      "recall": 0.6176470588235294,
+      "roc_auc": 0.8205804851584902,
+      "confusion_matrix": [
+        [
+          851,
+          184
+        ],
+        [
+          143,
+          231
+        ]
+      ],
+      "classification_report": {
+        "No": {
+          "precision": 0.8561368209255533,
+          "recall": 0.8222222222222222,
+          "f1-score": 0.838836865450961,
+          "support": 1035.0
+        },
+        "Yes": {
+          "precision": 0.5566265060240964,
+          "recall": 0.6176470588235294,
+          "f1-score": 0.5855513307984791,
+          "support": 374.0
+        },
+        "accuracy": 0.7679205110007097,
+        "macro avg": {
+          "precision": 0.7063816634748248,
+          "recall": 0.7199346405228758,
+          "f1-score": 0.7121940981247201,
+          "support": 1409.0
+        },
+        "weighted avg": {
+          "precision": 0.7766358572824413,
+          "recall": 0.7679205110007097,
+          "f1-score": 0.7716056447554123,
+          "support": 1409.0
+        }
+      }
+    },
+    "SVM": {
+      "artifact": "svm.joblib",
+      "accuracy": 0.7437899219304471,
+      "precision": 0.511504424778761,
+      "recall": 0.7727272727272727,
+      "roc_auc": 0.8210648686352011,
+      "confusion_matrix": [
+        [
+          759,
+          276
+        ],
+        [
+          85,
+          289
+        ]
+      ],
+      "classification_report": {
+        "No": {
+          "precision": 0.8992890995260664,
+          "recall": 0.7333333333333333,
+          "f1-score": 0.8078765300691857,
+          "support": 1035.0
+        },
+        "Yes": {
+          "precision": 0.511504424778761,
+          "recall": 0.7727272727272727,
+          "f1-score": 0.6155484558040468,
+          "support": 374.0
+        },
+        "accuracy": 0.7437899219304471,
+        "macro avg": {
+          "precision": 0.7053967621524138,
+          "recall": 0.7530303030303029,
+          "f1-score": 0.7117124929366163,
+          "support": 1409.0
+        },
+        "weighted avg": {
+          "precision": 0.7963569005512671,
+          "recall": 0.7437899219304471,
+          "f1-score": 0.7568256430747485,
+          "support": 1409.0
+        }
+      }
+    }
+  },
+  "limitations": []
+}

@@ -44,14 +44,24 @@ RetailMind/
 |   |-- data_preprocessing.py
 |   |-- train.py
 |   |-- evaluate.py
+|   |-- train_models.py
+|   |-- compare_models.py
 |   `-- predict.py
 |-- models/
 |   |-- churn_pipeline.joblib
 |   `-- churn_metrics.json
+|   |-- decision_tree.joblib
+|   |-- random_forest.joblib
+|   |-- svm.joblib
+|   |-- champion_model.joblib
+|   |-- model_evaluation_results.json
+|   |-- model_comparison.json
+|   `-- champion_metadata.json
 |-- notebooks/
 |-- Docs/
 |   `-- devlogs/
-|       `-- day1.md
+|       |-- day1.md
+|       `-- day2.md
 |-- .gitignore
 |-- project-documentation.md
 |-- README.md
@@ -149,3 +159,60 @@ Risk bands are High Risk at probability `>= 0.70`, Medium Risk at `>= 0.40` and 
 ## Limitations
 
 This is a single train/test baseline on one historical dataset. Its probabilities and risk bands are not calibrated business decisions. The prediction function expects all feature columns, and performance may change as customer behavior or data collection changes. Monitor performance and validate the model with current data before using it operationally.
+
+## Day 2 – Model Comparison and Champion Selection
+
+### Objective and algorithms
+
+Day 2 adds three classifiers and compares them with the saved Day 1 Logistic Regression baseline. All use the same stratified 80:20 split and the existing Day 1 preprocessing pipeline. Imputers and encoders are fitted on training records only.
+
+- **Decision Tree:** a class-weighted tree that learns feature-based decision rules.
+- **Random Forest:** an ensemble of 100 class-weighted decision trees whose predictions are combined.
+- **SVM:** an RBF-kernel, class-weighted Support Vector Machine with probability estimates enabled.
+
+No tuning or threshold changes were performed. Recall for actual churners (`Churn = Yes`) determines the champion, followed by ROC-AUC and precision as tie-breakers. All metrics below are measured on the same 1,409 test records; metrics use positive label `Yes`.
+
+| Model | Accuracy | Precision | Recall | ROC-AUC |
+|---|---:|---:|---:|---:|
+| Logistic Regression (Day 1) | 0.8055 | 0.6572 | 0.5588 | 0.8419 |
+| Decision Tree | 0.7317 | 0.4946 | 0.4866 | 0.6537 |
+| Random Forest | 0.7679 | 0.5566 | 0.6176 | 0.8206 |
+| SVM | 0.7438 | 0.5115 | 0.7727 | 0.8211 |
+
+**Champion: SVM.** It has the highest churn recall (0.7727), meaning it identified the largest share of actual churners on this test split. Its accuracy and precision are lower than the Day 1 Logistic Regression baseline, so the recall-focused choice is a trade-off rather than a universal winner.
+
+### Train and compare
+
+From the `RetailMind` directory, train the Day 2 models and evaluate them alongside the saved Day 1 baseline:
+
+```powershell
+python -m src.train_models
+python -m src.compare_models
+```
+
+Training saves the complete fitted model pipelines to `models/decision_tree.joblib`, `models/random_forest.joblib`, and `models/svm.joblib`, and writes model evaluations to `models/model_evaluation_results.json`. Comparison selects the champion by recall, ROC-AUC, then precision; it saves the full champion pipeline to `models/champion_model.joblib`, metadata to `models/champion_metadata.json`, and the comparison to `models/model_comparison.json`. The original `models/churn_pipeline.joblib` is evaluated but not modified.
+
+### Use the champion prediction service
+
+The existing prediction input still takes all 19 feature fields. The default model is now the champion and the returned dictionary includes `model_used`:
+
+```python
+from src.predict import predict
+
+customer = {
+    "gender": "Female", "SeniorCitizen": 0, "Partner": "Yes",
+    "Dependents": "No", "tenure": 1, "PhoneService": "No",
+    "MultipleLines": "No phone service", "InternetService": "DSL",
+    "OnlineSecurity": "No", "OnlineBackup": "Yes",
+    "DeviceProtection": "No", "TechSupport": "No",
+    "StreamingTV": "No", "StreamingMovies": "No",
+    "Contract": "Month-to-month", "PaperlessBilling": "Yes",
+    "PaymentMethod": "Electronic check", "MonthlyCharges": 29.85,
+    "TotalCharges": 29.85,
+}
+
+print(predict(customer))
+print(predict(customer, model="logistic_regression"))
+```
+
+The optional `model="logistic_regression"` retains access to the Day 1 baseline. Prediction requires the trained champion artifact, created by running both Day 2 commands above.
