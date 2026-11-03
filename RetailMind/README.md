@@ -50,6 +50,8 @@ RetailMind/
 |   |-- bias_variance.py
 |   |-- learning_curves.py
 |   |-- run_day3.py
+|   |-- feature_engineering.py
+|   |-- train_ensembles.py
 |   `-- predict.py
 |-- models/
 |   |-- churn_pipeline.joblib
@@ -70,13 +72,18 @@ RetailMind/
 |   |-- learning_curve_results.json
 |   |-- churn_v3.joblib
 |   |-- churn_v3_test_results.json
-|   `-- churn_v3_metadata.json
+|   |-- churn_v3_metadata.json
+|   |-- day_4_*.joblib
+|   |-- day4_comparison.json
+|   |-- churn_v4.joblib
+|   `-- churn_v4_metadata.json
 |-- notebooks/
 |-- Docs/
 |   `-- devlogs/
 |       |-- day1.md
 |       |-- day2.md
-|       `-- day3.md
+|       |-- day3.md
+|       `-- day4.md
 |-- .gitignore
 |-- project-documentation.md
 |-- README.md
@@ -159,15 +166,15 @@ customer = {
 print(predict(customer))
 ```
 
-Example output from the Day 3 v3 pipeline:
+Example output from the Day 4 default pipeline:
 
 ```python
 {
     "prediction": "Yes",
     "churn_probability": 0.4665435873402918,
     "status": "Medium Risk",
-    "model_used": "SVM",
-    "model_version": "v3",
+    "model_used": "Day 3 tuned champion",
+    "model_version": "v4",
 }
 ```
 
@@ -233,7 +240,7 @@ print(predict(customer, model="champion"))  # Day 2 champion
 print(predict(customer, model="logistic_regression"))
 ```
 
-The model selector retains access to the Day 2 champion and Day 1 Logistic Regression baseline. Prediction requires the requested model artifact to exist.
+The model selector retains access to the Day 3 v3 model, Day 2 champion, and Day 1 Logistic Regression baseline. Prediction requires the requested model artifact to exist.
 
 ## Day 3 – Hyperparameter Tuning and Generalisation
 
@@ -312,3 +319,47 @@ The tuned champion identified 307 of 374 actual churners (confusion matrix `[[67
 The versioned model is saved as `models/churn_v3.joblib`; its parameters, CV and test metrics, and selection metadata are in `models/churn_v3_metadata.json`. Full results are in `models/tuning_results.json`, `models/bias_variance_report.json`, `models/learning_curve_results.json`, and `models/churn_v3_test_results.json`. Day 1 and Day 2 model files remain in place.
 
 **Compatibility note:** scikit-learn 1.9.1 reports that `SVC(probability=True)` is deprecated and will be removed in 1.11. It is required by this day's SVM specification and is retained; `requirements.txt` caps the version below 1.11. The SVM grid also includes `gamma` for the linear kernel as specified, though gamma does not affect a linear SVM.
+
+## Day 4 – Feature Engineering and Ensembles
+
+Day 4 compares the unchanged Day 3 champion with Random Forest and XGBoost pipelines. All model/preprocessing variants use the common stratified 80:20 split and the same five-fold training-only stratified CV for candidate selection. The hold-out test set is evaluated only after selection and is not used to select the model.
+
+The reusable `ChurnFeatureEngineer` adds:
+
+- `tenure_group`: new (0–6 months), short-term (7–12), medium-term (13–36), or long-term (37+).
+- `is_month_to_month`, security and tech-support indicators, and `has_multiple_services`, a count across phone, internet, line, security, backup, protection, support, and streaming subscriptions.
+- `average_charge_per_tenure` and `monthly_to_average_charge_ratio`; zero tenure and invalid charges become missing and are handled by pipeline imputers.
+
+The engineered features are computed by the same pipeline during training and prediction. No target or customer identifier is used. Experiments include both original and engineered inputs for Random Forest and XGBoost, an XGBoost `SelectKBest(f_classif, k=20)` variant, and an XGBoost PCA variant. PCA is applied only after imputation and scaling to the numeric features; one-hot encoded categorical features are kept outside the PCA branch. PCA retains enough numeric components to explain 95% of variance.
+
+Random Forest combines trees trained on resampled feature/data subsets and is used here as a bagging ensemble. XGBoost builds trees sequentially to correct prior errors and is the boosting ensemble; it uses the binary-logistic objective, `aucpr` training metric, and training-only negative-to-positive class ratio as `scale_pos_weight`. The Day 4 configurations are intentionally fixed, not hyperparameter-tuned.
+
+### Same-split comparison
+
+Primary selection uses mean CV recall for churners. Test metrics below are reported for comparison after CV-based selection; they did not choose the champion.
+
+| Candidate | CV Recall | Test Accuracy | Test Precision | Test Recall | Test F1 | Test ROC-AUC |
+|---|---:|---:|---:|---:|---:|---:|
+| Day 3 tuned champion (SVM) | **0.8355** | 0.6941 | 0.4575 | **0.8209** | 0.5876 | 0.8093 |
+| Random Forest (original) | 0.7191 | 0.7601 | 0.5361 | 0.7139 | 0.6124 | 0.8351 |
+| XGBoost (original) | 0.7753 | 0.7523 | 0.5224 | 0.7781 | 0.6251 | 0.8428 |
+| Random Forest (engineered) | 0.7204 | 0.7644 | 0.5432 | 0.7059 | 0.6140 | 0.8355 |
+| XGBoost (engineered) | 0.7686 | 0.7544 | 0.5256 | 0.7674 | 0.6239 | 0.8414 |
+| XGBoost (feature selection, 20 retained) | 0.7759 | 0.7410 | 0.5080 | 0.7620 | 0.6096 | 0.8370 |
+| XGBoost (numeric PCA, 6 components) | 0.7572 | 0.7615 | 0.5356 | 0.7647 | 0.6300 | 0.8421 |
+
+The baseline transformed representation has 45 columns; adding engineered features results in 55. SelectKBest retains 20 of the 55 transformed columns. The PCA variant reduces the seven numeric columns to six components while retaining the encoded categorical columns (51 combined columns). On this dataset, feature engineering modestly changed CV recall but did not improve it over the Day 3 champion. Feature selection and PCA also did not beat the champion's CV recall.
+
+**Final v4 selection: retain the Day 3 tuned SVM pipeline.** Its training-only CV recall of 0.8355 exceeded every Day 4 RF/XGBoost candidate (best Day 4 CV recall was 0.7759). On the shared hold-out set it also had the highest recall, 0.8209, though XGBoost and PCA variants had higher accuracy, F1, and ROC-AUC. This choice prioritizes finding churners and explicitly avoids promoting an ensemble that performed worse on the primary validation metric.
+
+The complete v4 pipeline is saved as `models/churn_v4.joblib`, with metadata in `models/churn_v4_metadata.json` and all validation/test comparisons in `models/day4_comparison.json`. Day 1–3 artifacts remain unchanged.
+
+Run Day 4 from this project directory:
+
+```powershell
+python -m pip install -r requirements.txt
+python -m src.train_ensembles
+python src\predict.py
+```
+
+The Day 4 script reports classification reports and confusion matrices for each test-set candidate, then saves all candidate pipelines and the selected v4 pipeline. XGBoost is an additional dependency from Day 4 onward.

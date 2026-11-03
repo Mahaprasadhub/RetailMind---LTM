@@ -242,3 +242,78 @@ The complete Day 3 workflow ran successfully: all four searches completed, diagn
 ### What will be implemented on Day 4
 
 Use the next increment to investigate feature quality and controlled feature engineering while preserving the versioned Day 1–3 artifacts and ensuring any changes are assessed without test-set leakage.
+
+## Day 4: Feature Engineering and Ensembles
+
+### Objective
+
+Extend the churn platform with domain-based customer features, numeric-only PCA and feature-selection experiments, Random Forest and XGBoost ensembles, and a final versioned pipeline selected by training-only validation recall.
+
+### Tasks completed
+
+- Inspected the existing dataset, Day 1 preprocessing, Day 2 models, Day 3 tuned champion, prediction interface, documentation, and repository state.
+- Added a reusable sklearn feature-engineering transformer and tested zero-tenure charge handling.
+- Compared the Day 3 SVM champion with original-feature and engineered-feature Random Forest/XGBoost candidates, an XGBoost SelectKBest variant, and an XGBoost numeric PCA variant.
+- Used 5-fold stratified cross-validation on the training partition to select a candidate; evaluated every candidate on the fixed hold-out set only after selection.
+- Preserved Day 1, Day 2, and Day 3 saved model files.
+- Saved the complete final pipeline as `models/churn_v4.joblib` and its metadata and results as JSON.
+- Updated the prediction service to default to v4 and retain Day 1–3 explicit selectors.
+- Updated the README and added `Docs/devlogs/day4.md`.
+
+### Features engineered
+
+`src/feature_engineering.py` adds `tenure_group` (new 0–6 months, short-term 7–12, medium-term 13–36, long-term 37+), `is_month_to_month`, security/support indicators, and a count of subscribed phone, internet, line, security, backup, protection, support, and streaming services. It also creates total charges per tenure and monthly charges divided by that per-tenure amount. Division at zero tenure and missing/invalid charges yields missing values handled by the pipeline imputer. The transformer uses no target or customer ID and is reused during inference.
+
+### PCA and feature-selection experiments
+
+The original representation produced 45 transformed columns. Feature engineering increased it to 55. SelectKBest with `f_classif` retained 20 columns. The PCA experiment imputes and scales only the seven numeric inputs before retaining six components for 95% variance; one-hot categorical features are passed through separately, for 51 combined columns. These transformations are pipeline steps and are refit within each CV fold. Neither dimensionality reduction variant exceeded the Day 3 champion's validation recall.
+
+### Algorithms and validation methodology
+
+Random Forest used 300 trees, balanced class weighting, a fixed seed, and a leaf-size constraint. XGBoost used `binary:logistic`, `aucpr`, 300 trees, depth 4, learning rate 0.05, row/column subsampling, and `scale_pos_weight` calculated from the training labels only. No test-based early stopping or hyperparameter tuning was performed. Candidate selection used the common 5-fold shuffled, stratified training CV and prioritized positive-class recall; ROC-AUC and precision were secondary criteria, with absolute recall gap as an additional tie-break. All candidates shared the same 5,634-row training and 1,409-row hold-out records as prior days.
+
+### Evaluation results
+
+CV metrics shown below are training-only cross-validation means. Test-set metrics were calculated on the reserved hold-out records after CV-based selection.
+
+| Candidate | CV Recall | CV Precision | CV ROC-AUC | Test Accuracy | Test Precision | Test Recall | Test F1 | Test ROC-AUC |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Day 3 tuned champion (SVM) | 0.8355 | 0.4661 | 0.8304 | 0.6941 | 0.4575 | 0.8209 | 0.5876 | 0.8093 |
+| Random Forest (original) | 0.7191 | 0.5527 | 0.8376 | 0.7601 | 0.5361 | 0.7139 | 0.6124 | 0.8351 |
+| XGBoost (original) | 0.7753 | 0.5326 | 0.8436 | 0.7523 | 0.5224 | 0.7781 | 0.6251 | 0.8428 |
+| Random Forest (engineered) | 0.7204 | 0.5625 | 0.8385 | 0.7644 | 0.5432 | 0.7059 | 0.6140 | 0.8355 |
+| XGBoost (engineered) | 0.7686 | 0.5397 | 0.8436 | 0.7544 | 0.5256 | 0.7674 | 0.6239 | 0.8414 |
+| XGBoost (feature selection, 20) | 0.7759 | 0.5240 | 0.8389 | 0.7410 | 0.5080 | 0.7620 | 0.6096 | 0.8370 |
+| XGBoost (numeric PCA, 6 components) | 0.7572 | 0.5361 | 0.8399 | 0.7615 | 0.5356 | 0.7647 | 0.6300 | 0.8421 |
+
+The Day 3 SVM's CV recall of 0.8355 remains higher than the strongest Day 4 candidate's 0.7759. Engineered features did not improve validation recall: Random Forest moved from 0.7191 to 0.7204, while XGBoost moved from 0.7753 to 0.7686. SelectKBest and numeric PCA also reduced XGBoost recall relative to its original-feature variant.
+
+### Final champion and selection reason
+
+The final v4 pipeline retains the **Day 3 tuned SVM** because it had the highest mean training-only CV recall (0.8355); no Day 4 ensemble was forced into production. On the shared hold-out test set it achieved accuracy 0.6941, precision 0.4575, recall 0.8209, F1 0.5876, and ROC-AUC 0.8093, with confusion matrix `[[671, 364], [67, 307]]`. XGBoost PCA had higher test accuracy, F1, and ROC-AUC, but model selection was based on CV recall, not test metrics.
+
+### Model persistence and prediction
+
+`models/churn_v4.joblib` contains the complete selected preprocessing/classification pipeline. `models/churn_v4_metadata.json` records its version, algorithm, validation/test results, training configuration, and selection reason. `models/day4_comparison.json` contains CV and test metrics, classification reports, confusion matrices, and transformed dimensions. Day 4 Random Forest/XGBoost candidate pipelines are saved individually as `models/day_4_*.joblib`.
+
+The prediction service defaults to v4, returns `model_version="v4"`, and can still select `model="v3"`, `model="champion"`, or `model="logistic_regression"`. It accepts the original 19 feature fields; `customerID` and `Churn` are not needed.
+
+### Challenges and learnings
+
+XGBoost was not installed in the existing environment, so `xgboost>=2.0,<4.0` was added to `requirements.txt` and XGBoost 3.4.1 was installed. PCA was deliberately limited to scaled numeric columns to avoid applying PCA to raw categorical data. Feature engineering changed the validation scores only slightly and did not improve the primary metric; the simpler Day 3 pipeline was therefore retained.
+
+### Files created and modified
+
+- Added `src/feature_engineering.py` and `src/train_ensembles.py`.
+- Modified `src/predict.py`, `requirements.txt`, and `README.md`.
+- Appended this section to `project-documentation.md` and created `Docs/devlogs/day4.md`.
+- Added `models/day_4_*.joblib`, `models/day4_comparison.json`, `models/churn_v4.joblib`, and `models/churn_v4_metadata.json`.
+- Existing Day 1–3 source and model artifacts were preserved.
+
+### Final outcome
+
+All six Day 4 RF/XGBoost variants and the Day 3 champion were trained/evaluated successfully. The seven candidates were compared on the same hold-out set, but the CV-only primary selection chose the Day 3 SVM. The v4 pipeline was saved, reloaded, and exercised through the updated prediction service.
+
+### What will be implemented on Day 5
+
+Continue the 35-day plan with the next requested increment only after defining its scope; retain the versioned v1–v4 artifacts and use fresh validation for future changes.

@@ -1,0 +1,110 @@
+{
+  "model_version": "v4",
+  "model_name": "Day 3 tuned champion",
+  "algorithm": "SVC",
+  "artifact": "churn_v4.joblib",
+  "validation_metrics": {
+    "mean_validation_recall": 0.8354515050167224,
+    "std_validation_recall": 0.01908407039155464,
+    "mean_training_recall": 0.8354515050167224,
+    "mean_precision": 0.4660959900480611,
+    "mean_roc_auc": 0.8304010445455943,
+    "mean_f1": 0.5982805554513997,
+    "generalisation_gap": 0.0,
+    "cv_method": "StratifiedKFold",
+    "cv_splits": 5,
+    "cv_random_state": 42,
+    "artifact": "churn_v3.joblib",
+    "transformed_dimensions": {
+      "preselection_transformed_features": 45,
+      "retained_features_or_components": 45
+    }
+  },
+  "test_metrics": {
+    "accuracy": 0.6941092973740242,
+    "precision": 0.45752608047690013,
+    "recall": 0.820855614973262,
+    "f1": 0.5875598086124402,
+    "roc_auc": 0.809315663024103
+  },
+  "best_hyperparameters": {
+    "C": 0.1,
+    "break_ties": false,
+    "cache_size": 200,
+    "class_weight": "balanced",
+    "coef0": 0.0,
+    "decision_function_shape": "ovr",
+    "degree": 3,
+    "gamma": "scale",
+    "kernel": "linear",
+    "max_iter": -1,
+    "probability": true,
+    "random_state": 42,
+    "shrinking": true,
+    "tol": 0.001,
+    "verbose": false
+  },
+  "selected_transformations": {
+    "feature_engineering": false,
+    "dimensionality_reduction": null,
+    "preselection_transformed_features": 45,
+    "retained_features_or_components": 45
+  },
+  "feature_configuration": {
+    "numeric_features": [
+      "SeniorCitizen",
+      "tenure",
+      "MonthlyCharges",
+      "TotalCharges"
+    ],
+    "categorical_features": [
+      "gender",
+      "Partner",
+      "Dependents",
+      "PhoneService",
+      "MultipleLines",
+      "InternetService",
+      "OnlineSecurity",
+      "OnlineBackup",
+      "DeviceProtection",
+      "TechSupport",
+      "StreamingTV",
+      "StreamingMovies",
+      "Contract",
+      "PaperlessBilling",
+      "PaymentMethod"
+    ],
+    "engineered_numeric_features": [
+      "is_month_to_month",
+      "has_security_service",
+      "has_tech_support",
+      "has_multiple_services",
+      "average_charge_per_tenure",
+      "monthly_to_average_charge_ratio"
+    ],
+    "engineered_categorical_features": [
+      "tenure_group"
+    ],
+    "xgboost_scale_pos_weight": 2.768561872909699
+  },
+  "training_configuration": {
+    "dataset_file": "WA_Fn-UseC_-Telco-Customer-Churn.csv",
+    "train_test_split": {
+      "test_size": 0.2,
+      "random_state": 42,
+      "stratified": true,
+      "training_rows": 5634,
+      "test_rows": 1409
+    },
+    "cross_validation": {
+      "method": "StratifiedKFold",
+      "n_splits": 5,
+      "shuffle": true,
+      "random_state": 42,
+      "selection_metric": "recall for Churn = Yes",
+      "test_data_used_for_selection": false
+    }
+  },
+  "selection_reason": "Selected by highest training-only mean cross-validation recall (0.8355); ROC-AUC and precision were secondary criteria, with generalisation gap as an additional tie-break consideration. Hold-out metrics were calculated only after selection.",
+  "test_results_file": "day4_comparison.json"
+}

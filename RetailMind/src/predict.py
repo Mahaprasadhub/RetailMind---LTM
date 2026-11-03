@@ -17,30 +17,34 @@ else:
 
 
 MODEL_DIRECTORY = PROJECT_ROOT / "models"
+V4_MODEL_PATH = MODEL_DIRECTORY / "churn_v4.joblib"
+V4_METADATA_PATH = MODEL_DIRECTORY / "churn_v4_metadata.json"
 V3_MODEL_PATH = MODEL_DIRECTORY / "churn_v3.joblib"
 V3_METADATA_PATH = MODEL_DIRECTORY / "churn_v3_metadata.json"
 CHAMPION_MODEL_PATH = MODEL_DIRECTORY / "champion_model.joblib"
 CHAMPION_METADATA_PATH = MODEL_DIRECTORY / "champion_metadata.json"
 
 
-def predict(customer_data, model="v3"):
-    """Return a churn prediction using v3, the Day 2 champion, or Day 1 baseline."""
+def predict(customer_data, model="v4"):
+    """Return a prediction using the latest model or a preserved earlier version."""
     if not isinstance(customer_data, dict):
         raise TypeError("customer_data must be a dictionary of feature values.")
     if any(not isinstance(column, str) for column in customer_data):
         raise ValueError("All customer_data keys must be feature names (strings).")
     model_paths = {
+        "v4": V4_MODEL_PATH,
         "v3": V3_MODEL_PATH,
         "champion": CHAMPION_MODEL_PATH,
         "logistic_regression": MODEL_PATH,
     }
     if not isinstance(model, str) or model not in model_paths:
         raise ValueError(
-            "model must be 'v3', 'champion', or 'logistic_regression'."
+            "model must be 'v4', 'v3', 'champion', or 'logistic_regression'."
         )
     model_path = model_paths[model]
     if not model_path.is_file():
         required_commands = {
+            "v4": "python -m src.train_ensembles",
             "v3": "python -m src.run_day3",
             "champion": (
                 "python -m src.train_models and python -m src.compare_models"
@@ -73,6 +77,8 @@ def predict(customer_data, model="v3"):
     preprocessor = pipeline.named_steps["preprocessor"]
     numeric_columns = preprocessor.transformers_[0][2]
     for column in numeric_columns:
+        if column not in customer_frame.columns:
+            continue
         original_values = customer_frame[column]
         converted_values = pd.to_numeric(original_values, errors="coerce")
         invalid_values = (
@@ -94,6 +100,7 @@ def predict(customer_data, model="v3"):
     )
     prediction = "Yes" if predicted_class == 1 else "No"
     metadata_paths = {
+        "v4": V4_METADATA_PATH,
         "v3": V3_METADATA_PATH,
         "champion": CHAMPION_METADATA_PATH,
     }
@@ -102,13 +109,15 @@ def predict(customer_data, model="v3"):
         if not metadata_path.is_file():
             raise FileNotFoundError(
                 f"Model metadata not found: {metadata_path}. "
-                f"Run `{('python -m src.run_day3' if model == 'v3' else 'python -m src.compare_models')}` "
+                f"Run `{required_commands[model]}` "
                 "to create it."
             )
         with metadata_path.open("r", encoding="utf-8") as metadata_file:
             model_metadata = json.load(metadata_file)
         model_used = model_metadata.get("model_name", model_metadata.get("name"))
-        model_version = model_metadata.get("model_version", "day2")
+        model_version = model_metadata.get(
+            "model_version", "v3" if model == "v3" else "day2"
+        )
     else:
         model_used = "Logistic Regression"
         model_version = "day1"
@@ -161,6 +170,7 @@ def _run_demo():
     print(f"Churn probability: {result['churn_probability']:.4f}")
     print(f"Risk status: {result['status']}")
     print(f"Model used: {result['model_used']}")
+    print(f"Model version: {result['model_version']}")
 
 
 if __name__ == "__main__":

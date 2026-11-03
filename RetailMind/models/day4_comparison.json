@@ -1,0 +1,571 @@
+{
+  "positive_class": "Churn = Yes (label 1)",
+  "split": {
+    "test_size": 0.2,
+    "random_state": 42,
+    "stratified": true,
+    "train_rows": 5634,
+    "test_rows": 1409
+  },
+  "selection_criteria": [
+    "Highest mean training-only cross-validation recall",
+    "Then highest cross-validation ROC-AUC",
+    "Then highest cross-validation precision",
+    "Then smaller absolute generalisation gap"
+  ],
+  "feature_configuration": {
+    "numeric_features": [
+      "SeniorCitizen",
+      "tenure",
+      "MonthlyCharges",
+      "TotalCharges"
+    ],
+    "categorical_features": [
+      "gender",
+      "Partner",
+      "Dependents",
+      "PhoneService",
+      "MultipleLines",
+      "InternetService",
+      "OnlineSecurity",
+      "OnlineBackup",
+      "DeviceProtection",
+      "TechSupport",
+      "StreamingTV",
+      "StreamingMovies",
+      "Contract",
+      "PaperlessBilling",
+      "PaymentMethod"
+    ],
+    "engineered_numeric_features": [
+      "is_month_to_month",
+      "has_security_service",
+      "has_tech_support",
+      "has_multiple_services",
+      "average_charge_per_tenure",
+      "monthly_to_average_charge_ratio"
+    ],
+    "engineered_categorical_features": [
+      "tenure_group"
+    ],
+    "xgboost_scale_pos_weight": 2.768561872909699
+  },
+  "cross_validation_results": {
+    "Day 3 tuned champion": {
+      "mean_validation_recall": 0.8354515050167224,
+      "std_validation_recall": 0.01908407039155464,
+      "mean_training_recall": 0.8354515050167224,
+      "mean_precision": 0.4660959900480611,
+      "mean_roc_auc": 0.8304010445455943,
+      "mean_f1": 0.5982805554513997,
+      "generalisation_gap": 0.0,
+      "cv_method": "StratifiedKFold",
+      "cv_splits": 5,
+      "cv_random_state": 42,
+      "artifact": "churn_v3.joblib",
+      "transformed_dimensions": {
+        "preselection_transformed_features": 45,
+        "retained_features_or_components": 45
+      }
+    },
+    "Day 4 Random Forest (original)": {
+      "mean_validation_recall": 0.7190635451505016,
+      "std_validation_recall": 0.02733487189525423,
+      "mean_training_recall": 0.9837792642140469,
+      "mean_precision": 0.5526831631903094,
+      "mean_roc_auc": 0.8376221720244231,
+      "mean_f1": 0.6248623528580158,
+      "generalisation_gap": 0.2647157190635453,
+      "cv_method": "StratifiedKFold",
+      "cv_splits": 5,
+      "cv_random_state": 42,
+      "artifact": "day_4_random_forest_original.joblib",
+      "transformed_dimensions": {
+        "preselection_transformed_features": 45,
+        "retained_features_or_components": 45
+      }
+    },
+    "Day 4 XGBoost (original)": {
+      "mean_validation_recall": 0.7752508361204014,
+      "std_validation_recall": 0.025680740896926398,
+      "mean_training_recall": 0.8926421404682273,
+      "mean_precision": 0.5326025197635063,
+      "mean_roc_auc": 0.8435556523993675,
+      "mean_f1": 0.6313167825815302,
+      "generalisation_gap": 0.11739130434782596,
+      "cv_method": "StratifiedKFold",
+      "cv_splits": 5,
+      "cv_random_state": 42,
+      "artifact": "day_4_xgboost_original.joblib",
+      "transformed_dimensions": {
+        "preselection_transformed_features": 45,
+        "retained_features_or_components": 45
+      }
+    },
+    "Day 4 Random Forest (engineered)": {
+      "mean_validation_recall": 0.720401337792642,
+      "std_validation_recall": 0.031274032715882145,
+      "mean_training_recall": 0.9941471571906355,
+      "mean_precision": 0.5624537153311213,
+      "mean_roc_auc": 0.838469208600848,
+      "mean_f1": 0.6316198827473612,
+      "generalisation_gap": 0.2737458193979935,
+      "cv_method": "StratifiedKFold",
+      "cv_splits": 5,
+      "cv_random_state": 42,
+      "artifact": "day_4_random_forest_engineered.joblib",
+      "feature_transformations": [
+        "tenure_group",
+        "is_month_to_month",
+        "has_security_service",
+        "has_tech_support",
+        "has_multiple_services",
+        "average_charge_per_tenure",
+        "monthly_to_average_charge_ratio"
+      ],
+      "transformed_dimensions": {
+        "preselection_transformed_features": 55,
+        "retained_features_or_components": 55
+      }
+    },
+    "Day 4 XGBoost (engineered)": {
+      "mean_validation_recall": 0.768561872909699,
+      "std_validation_recall": 0.020442417110282468,
+      "mean_training_recall": 0.905685618729097,
+      "mean_precision": 0.5397095863125536,
+      "mean_roc_auc": 0.8435695083712262,
+      "mean_f1": 0.6340507006929468,
+      "generalisation_gap": 0.137123745819398,
+      "cv_method": "StratifiedKFold",
+      "cv_splits": 5,
+      "cv_random_state": 42,
+      "artifact": "day_4_xgboost_engineered.joblib",
+      "feature_transformations": [
+        "tenure_group",
+        "is_month_to_month",
+        "has_security_service",
+        "has_tech_support",
+        "has_multiple_services",
+        "average_charge_per_tenure",
+        "monthly_to_average_charge_ratio"
+      ],
+      "transformed_dimensions": {
+        "preselection_transformed_features": 55,
+        "retained_features_or_components": 55
+      }
+    },
+    "Day 4 XGBoost (feature selection)": {
+      "mean_validation_recall": 0.7759197324414716,
+      "std_validation_recall": 0.024938263387702022,
+      "mean_training_recall": 0.8607023411371237,
+      "mean_precision": 0.5240183172926225,
+      "mean_roc_auc": 0.8389128922635939,
+      "mean_f1": 0.6254506612528401,
+      "generalisation_gap": 0.08478260869565213,
+      "cv_method": "StratifiedKFold",
+      "cv_splits": 5,
+      "cv_random_state": 42,
+      "artifact": "day_4_xgboost_feature_selection.joblib",
+      "feature_transformations": [
+        "tenure_group",
+        "is_month_to_month",
+        "has_security_service",
+        "has_tech_support",
+        "has_multiple_services",
+        "average_charge_per_tenure",
+        "monthly_to_average_charge_ratio"
+      ],
+      "transformed_dimensions": {
+        "preselection_transformed_features": 55,
+        "retained_features_or_components": 20
+      }
+    },
+    "Day 4 XGBoost (numeric PCA)": {
+      "mean_validation_recall": 0.757190635451505,
+      "std_validation_recall": 0.029202514987214833,
+      "mean_training_recall": 0.9085284280936454,
+      "mean_precision": 0.5361244820725835,
+      "mean_roc_auc": 0.8398987430251502,
+      "mean_f1": 0.6275325864357484,
+      "generalisation_gap": 0.15133779264214042,
+      "cv_method": "StratifiedKFold",
+      "cv_splits": 5,
+      "cv_random_state": 42,
+      "artifact": "day_4_xgboost_numeric_pca.joblib",
+      "feature_transformations": [
+        "tenure_group",
+        "is_month_to_month",
+        "has_security_service",
+        "has_tech_support",
+        "has_multiple_services",
+        "average_charge_per_tenure",
+        "monthly_to_average_charge_ratio"
+      ],
+      "transformed_dimensions": {
+        "preselection_transformed_features": 51,
+        "retained_features_or_components": 51,
+        "pca_numeric_components": 6
+      }
+    }
+  },
+  "test_results": {
+    "Day 3 tuned champion": {
+      "accuracy": 0.6941092973740242,
+      "precision": 0.45752608047690013,
+      "recall": 0.820855614973262,
+      "f1": 0.5875598086124402,
+      "roc_auc": 0.809315663024103,
+      "confusion_matrix": [
+        [
+          671,
+          364
+        ],
+        [
+          67,
+          307
+        ]
+      ],
+      "classification_report": {
+        "No": {
+          "precision": 0.9092140921409214,
+          "recall": 0.6483091787439613,
+          "f1-score": 0.7569091934574168,
+          "support": 1035.0
+        },
+        "Yes": {
+          "precision": 0.45752608047690013,
+          "recall": 0.820855614973262,
+          "f1-score": 0.5875598086124402,
+          "support": 374.0
+        },
+        "accuracy": 0.6941092973740242,
+        "macro avg": {
+          "precision": 0.6833700863089107,
+          "recall": 0.7345823968586116,
+          "f1-score": 0.6722345010349284,
+          "support": 1409.0
+        },
+        "weighted avg": {
+          "precision": 0.7893196163692081,
+          "recall": 0.6941092973740242,
+          "f1-score": 0.711957688892462,
+          "support": 1409.0
+        }
+      }
+    },
+    "Day 4 Random Forest (original)": {
+      "accuracy": 0.7601135557132718,
+      "precision": 0.536144578313253,
+      "recall": 0.713903743315508,
+      "f1": 0.6123853211009175,
+      "roc_auc": 0.8351339481774265,
+      "confusion_matrix": [
+        [
+          804,
+          231
+        ],
+        [
+          107,
+          267
+        ]
+      ],
+      "classification_report": {
+        "No": {
+          "precision": 0.8825466520307355,
+          "recall": 0.7768115942028986,
+          "f1-score": 0.8263103802672148,
+          "support": 1035.0
+        },
+        "Yes": {
+          "precision": 0.536144578313253,
+          "recall": 0.713903743315508,
+          "f1-score": 0.6123853211009175,
+          "support": 374.0
+        },
+        "accuracy": 0.7601135557132718,
+        "macro avg": {
+          "precision": 0.7093456151719942,
+          "recall": 0.7453576687592033,
+          "f1-score": 0.7193478506840661,
+          "support": 1409.0
+        },
+        "weighted avg": {
+          "precision": 0.7905989049971383,
+          "recall": 0.7601135557132718,
+          "f1-score": 0.7695268656269059,
+          "support": 1409.0
+        }
+      }
+    },
+    "Day 4 XGBoost (original)": {
+      "accuracy": 0.752306600425834,
+      "precision": 0.5224416517055656,
+      "recall": 0.7780748663101604,
+      "f1": 0.6251342642320086,
+      "roc_auc": 0.8427600816347619,
+      "confusion_matrix": [
+        [
+          769,
+          266
+        ],
+        [
+          83,
+          291
+        ]
+      ],
+      "classification_report": {
+        "No": {
+          "precision": 0.9025821596244131,
+          "recall": 0.7429951690821256,
+          "f1-score": 0.8150503444621092,
+          "support": 1035.0
+        },
+        "Yes": {
+          "precision": 0.5224416517055656,
+          "recall": 0.7780748663101604,
+          "f1-score": 0.6251342642320086,
+          "support": 374.0
+        },
+        "accuracy": 0.752306600425834,
+        "macro avg": {
+          "precision": 0.7125119056649893,
+          "recall": 0.760535017696143,
+          "f1-score": 0.7200923043470588,
+          "support": 1409.0
+        },
+        "weighted avg": {
+          "precision": 0.8016790013833565,
+          "recall": 0.752306600425834,
+          "f1-score": 0.7646396886735659,
+          "support": 1409.0
+        }
+      }
+    },
+    "Day 4 Random Forest (engineered)": {
+      "accuracy": 0.7643718949609652,
+      "precision": 0.5432098765432098,
+      "recall": 0.7058823529411765,
+      "f1": 0.6139534883720931,
+      "roc_auc": 0.8355421219871347,
+      "confusion_matrix": [
+        [
+          813,
+          222
+        ],
+        [
+          110,
+          264
+        ]
+      ],
+      "classification_report": {
+        "No": {
+          "precision": 0.8808234019501625,
+          "recall": 0.7855072463768116,
+          "f1-score": 0.8304392236976507,
+          "support": 1035.0
+        },
+        "Yes": {
+          "precision": 0.5432098765432098,
+          "recall": 0.7058823529411765,
+          "f1-score": 0.6139534883720931,
+          "support": 374.0
+        },
+        "accuracy": 0.7643718949609652,
+        "macro avg": {
+          "precision": 0.7120166392466862,
+          "recall": 0.745694799658994,
+          "f1-score": 0.7221963560348719,
+          "support": 1409.0
+        },
+        "weighted avg": {
+          "precision": 0.7912084562424263,
+          "recall": 0.7643718949609652,
+          "f1-score": 0.7729760121917895,
+          "support": 1409.0
+        }
+      }
+    },
+    "Day 4 XGBoost (engineered)": {
+      "accuracy": 0.7544357700496807,
+      "precision": 0.5256410256410257,
+      "recall": 0.767379679144385,
+      "f1": 0.6239130434782608,
+      "roc_auc": 0.841366348911106,
+      "confusion_matrix": [
+        [
+          776,
+          259
+        ],
+        [
+          87,
+          287
+        ]
+      ],
+      "classification_report": {
+        "No": {
+          "precision": 0.899188876013905,
+          "recall": 0.7497584541062802,
+          "f1-score": 0.8177028451001054,
+          "support": 1035.0
+        },
+        "Yes": {
+          "precision": 0.5256410256410257,
+          "recall": 0.767379679144385,
+          "f1-score": 0.6239130434782608,
+          "support": 374.0
+        },
+        "accuracy": 0.7544357700496807,
+        "macro avg": {
+          "precision": 0.7124149508274653,
+          "recall": 0.7585690666253326,
+          "f1-score": 0.720807944289183,
+          "support": 1409.0
+        },
+        "weighted avg": {
+          "precision": 0.8000356495841983,
+          "recall": 0.7544357700496807,
+          "f1-score": 0.7662639623417166,
+          "support": 1409.0
+        }
+      }
+    },
+    "Day 4 XGBoost (feature selection)": {
+      "accuracy": 0.7409510290986515,
+      "precision": 0.5080213903743316,
+      "recall": 0.7620320855614974,
+      "f1": 0.6096256684491979,
+      "roc_auc": 0.836993980727996,
+      "confusion_matrix": [
+        [
+          759,
+          276
+        ],
+        [
+          89,
+          285
+        ]
+      ],
+      "classification_report": {
+        "No": {
+          "precision": 0.8950471698113207,
+          "recall": 0.7333333333333333,
+          "f1-score": 0.8061603823685608,
+          "support": 1035.0
+        },
+        "Yes": {
+          "precision": 0.5080213903743316,
+          "recall": 0.7620320855614974,
+          "f1-score": 0.6096256684491979,
+          "support": 374.0
+        },
+        "accuracy": 0.7409510290986515,
+        "macro avg": {
+          "precision": 0.7015342800928261,
+          "recall": 0.7476827094474153,
+          "f1-score": 0.7078930254088793,
+          "support": 1409.0
+        },
+        "weighted avg": {
+          "precision": 0.7923164093362078,
+          "recall": 0.7409510290986515,
+          "f1-score": 0.7539928997526333,
+          "support": 1409.0
+        }
+      }
+    },
+    "Day 4 XGBoost (numeric PCA)": {
+      "accuracy": 0.7615330021291696,
+      "precision": 0.5355805243445693,
+      "recall": 0.7647058823529411,
+      "f1": 0.6299559471365639,
+      "roc_auc": 0.8420754863210105,
+      "confusion_matrix": [
+        [
+          787,
+          248
+        ],
+        [
+          88,
+          286
+        ]
+      ],
+      "classification_report": {
+        "No": {
+          "precision": 0.8994285714285715,
+          "recall": 0.7603864734299517,
+          "f1-score": 0.8240837696335078,
+          "support": 1035.0
+        },
+        "Yes": {
+          "precision": 0.5355805243445693,
+          "recall": 0.7647058823529411,
+          "f1-score": 0.6299559471365639,
+          "support": 374.0
+        },
+        "accuracy": 0.7615330021291696,
+        "macro avg": {
+          "precision": 0.7175045478865704,
+          "recall": 0.7625461778914464,
+          "f1-score": 0.7270198583850358,
+          "support": 1409.0
+        },
+        "weighted avg": {
+          "precision": 0.8028500266383537,
+          "recall": 0.7615330021291696,
+          "f1-score": 0.7725551638039428,
+          "support": 1409.0
+        }
+      }
+    }
+  },
+  "champion": {
+    "name": "Day 3 tuned champion",
+    "metrics": {
+      "accuracy": 0.6941092973740242,
+      "precision": 0.45752608047690013,
+      "recall": 0.820855614973262,
+      "f1": 0.5875598086124402,
+      "roc_auc": 0.809315663024103,
+      "confusion_matrix": [
+        [
+          671,
+          364
+        ],
+        [
+          67,
+          307
+        ]
+      ],
+      "classification_report": {
+        "No": {
+          "precision": 0.9092140921409214,
+          "recall": 0.6483091787439613,
+          "f1-score": 0.7569091934574168,
+          "support": 1035.0
+        },
+        "Yes": {
+          "precision": 0.45752608047690013,
+          "recall": 0.820855614973262,
+          "f1-score": 0.5875598086124402,
+          "support": 374.0
+        },
+        "accuracy": 0.6941092973740242,
+        "macro avg": {
+          "precision": 0.6833700863089107,
+          "recall": 0.7345823968586116,
+          "f1-score": 0.6722345010349284,
+          "support": 1409.0
+        },
+        "weighted avg": {
+          "precision": 0.7893196163692081,
+          "recall": 0.6941092973740242,
+          "f1-score": 0.711957688892462,
+          "support": 1409.0
+        }
+      }
+    },
+    "artifact": "churn_v4.joblib",
+    "selection_reason": "Selected by highest training-only mean cross-validation recall (0.8355); ROC-AUC and precision were secondary criteria, with generalisation gap as an additional tie-break consideration. Hold-out metrics were calculated only after selection."
+  },
+  "test_data_used_for_selection": false
+}
