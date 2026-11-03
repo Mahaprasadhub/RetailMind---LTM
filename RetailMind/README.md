@@ -46,22 +46,37 @@ RetailMind/
 |   |-- evaluate.py
 |   |-- train_models.py
 |   |-- compare_models.py
+|   |-- hyperparameter_tuning.py
+|   |-- bias_variance.py
+|   |-- learning_curves.py
+|   |-- run_day3.py
 |   `-- predict.py
 |-- models/
 |   |-- churn_pipeline.joblib
-|   `-- churn_metrics.json
+|   |-- churn_metrics.json
 |   |-- decision_tree.joblib
 |   |-- random_forest.joblib
 |   |-- svm.joblib
 |   |-- champion_model.joblib
 |   |-- model_evaluation_results.json
 |   |-- model_comparison.json
-|   `-- champion_metadata.json
+|   |-- champion_metadata.json
+|   |-- tuned_logistic_regression.joblib
+|   |-- tuned_decision_tree.joblib
+|   |-- tuned_random_forest.joblib
+|   |-- tuned_svm.joblib
+|   |-- tuning_results.json
+|   |-- bias_variance_report.json
+|   |-- learning_curve_results.json
+|   |-- churn_v3.joblib
+|   |-- churn_v3_test_results.json
+|   `-- churn_v3_metadata.json
 |-- notebooks/
 |-- Docs/
 |   `-- devlogs/
 |       |-- day1.md
-|       `-- day2.md
+|       |-- day2.md
+|       `-- day3.md
 |-- .gitignore
 |-- project-documentation.md
 |-- README.md
@@ -144,13 +159,15 @@ customer = {
 print(predict(customer))
 ```
 
-Example output from the trained artifact:
+Example output from the Day 3 v3 pipeline:
 
 ```python
 {
     "prediction": "Yes",
-    "churn_probability": 0.6128185504500037,
+    "churn_probability": 0.4665435873402918,
     "status": "Medium Risk",
+    "model_used": "SVM",
+    "model_version": "v3",
 }
 ```
 
@@ -158,7 +175,7 @@ Risk bands are High Risk at probability `>= 0.70`, Medium Risk at `>= 0.40` and 
 
 ## Limitations
 
-This is a single train/test baseline on one historical dataset. Its probabilities and risk bands are not calibrated business decisions. The prediction function expects all feature columns, and performance may change as customer behavior or data collection changes. Monitor performance and validate the model with current data before using it operationally.
+The models and cross-validation results use one historical dataset, and final performance is measured on one hold-out split. Probabilities and risk bands are not calibrated business decisions. The prediction function expects all feature columns, and performance may change as customer behavior or data collection changes. Validate on current external data and monitor performance before operational use.
 
 ## Day 2 – Model Comparison and Champion Selection
 
@@ -194,7 +211,7 @@ Training saves the complete fitted model pipelines to `models/decision_tree.jobl
 
 ### Use the champion prediction service
 
-The existing prediction input still takes all 19 feature fields. The default model is now the champion and the returned dictionary includes `model_used`:
+The existing prediction input still takes all 19 feature fields. The default model is now the latest tuned v3 model; the returned dictionary includes `model_used` and `model_version`:
 
 ```python
 from src.predict import predict
@@ -211,8 +228,87 @@ customer = {
     "TotalCharges": 29.85,
 }
 
-print(predict(customer))
+print(predict(customer))  # latest tuned v3 model
+print(predict(customer, model="champion"))  # Day 2 champion
 print(predict(customer, model="logistic_regression"))
 ```
 
-The optional `model="logistic_regression"` retains access to the Day 1 baseline. Prediction requires the trained champion artifact, created by running both Day 2 commands above.
+The model selector retains access to the Day 2 champion and Day 1 Logistic Regression baseline. Prediction requires the requested model artifact to exist.
+
+## Day 3 – Hyperparameter Tuning and Generalisation
+
+Day 3 tunes Logistic Regression, Decision Tree, Random Forest, and SVM using `GridSearchCV` with a shuffled, five-fold `StratifiedKFold` on training data only. Recall for `Churn = Yes` is the primary search score; fold-level precision and ROC-AUC are calculated for the selected settings. Preprocessing remains inside each pipeline, so imputers, scaling, and one-hot encoding are refit within each fold. The 20% hold-out partition is reserved for final evaluation and historical-model comparison after the CV champion is selected.
+
+The grids explore:
+
+- Logistic Regression: `C=[0.01, 0.1, 1, 10]`, `class_weight=[None, "balanced"]`.
+- Decision Tree: `max_depth=[5, 10, 20, None]`, `min_samples_split=[2, 5, 10]`, `min_samples_leaf=[1, 2, 5]`, `class_weight=[None, "balanced"]`.
+- Random Forest: `n_estimators=[100, 200]`, `max_depth=[10, 20, None]`, `min_samples_split=[2, 5]`, `min_samples_leaf=[1, 2]`, `class_weight=["balanced"]`.
+- SVM: `C=[0.1, 1, 10]`, `kernel=["rbf", "linear"]`, `gamma=["scale", "auto"]`, `class_weight=[None, "balanced"]`.
+
+Logistic Regression uses `max_iter=2000` and `random_state=42`; the tree-based models use `random_state=42`, and SVM uses `probability=True` and `random_state=42`. Numerical imputation, scaling, and categorical encoding are part of each pipeline and are fitted within each CV fold.
+
+The actual best parameters, cross-validation comparison, recall-based bias/variance report, and numerical learning curve are saved under `models/`. The diagnostics are relative indications across these candidates, not statistical proof. The final model is selected by mean CV recall, with mean CV ROC-AUC and precision as tie-breakers; test metrics do not affect selection.
+
+Run the complete Day 3 workflow from the `RetailMind` directory:
+
+```powershell
+python -m src.run_day3
+```
+
+This writes `models/tuning_results.json`, `models/bias_variance_report.json`, `models/learning_curve_results.json`, `models/churn_v3_test_results.json`, and `models/churn_v3_metadata.json`, and saves the fitted versioned pipeline to `models/churn_v3.joblib`. Existing Day 1 and Day 2 model files are preserved.
+
+The prediction service now defaults to v3 and returns a `model_version` field. Day 2 and Day 1 predictions remain available explicitly:
+
+```python
+from src.predict import predict
+
+print(predict(customer))  # latest tuned v3 model
+print(predict(customer, model="champion"))  # Day 2 champion
+print(predict(customer, model="logistic_regression"))  # Day 1 baseline
+```
+
+### Actual tuning results
+
+The full parameter counts were 8 Logistic Regression, 72 Decision Tree, 24 Random Forest, and 24 SVM configurations (640 five-fold candidate fits total). All searches used the training split only. The table shows measured mean training and validation recall for each best configuration; precision and ROC-AUC are cross-validated on the same training partition.
+
+| Model | Best parameters | Train recall | CV recall | CV precision | CV ROC-AUC | Recall gap | Relative diagnosis |
+|---|---|---:|---:|---:|---:|---:|---|
+| Logistic Regression | `C=1`, balanced | 0.8062 | 0.8013 | 0.5165 | 0.8459 | 0.0048 | Relatively good generalisation |
+| Decision Tree | depth 5, leaf 5, split 2, balanced | 0.8125 | 0.7806 | 0.5098 | 0.8296 | 0.0319 | Potential high bias (relative) |
+| Random Forest | 100 trees, depth 10, leaf 2, split 2, balanced | 0.9435 | 0.7645 | 0.5384 | 0.8429 | 0.1789 | Potential high variance (relative) |
+| SVM | `C=0.1`, linear, `gamma=scale`, balanced | 0.8355 | **0.8355** | 0.4661 | 0.8304 | 0.0000 | Relatively good generalisation |
+
+The bias/variance report compares each model with this candidate cohort's median train recall (0.8240), validation recall (0.7910), and absolute gap (0.0184). Its labels are relative practical indications, not universal cutoffs or statistical proof. The Random Forest has the largest recall gap; the Decision Tree has both recall scores in the lower half and a larger-than-median gap, so its signals are mixed; SVM and Logistic Regression have relatively small gaps.
+
+### Champion selection and learning curve
+
+**Final champion: SVM.** It achieved the highest mean cross-validation recall, **0.8355**, so it wins under the primary selection rule. Logistic Regression was the runner-up with recall 0.8013, higher CV ROC-AUC (0.8459 versus 0.8304) and precision (0.5165 versus 0.4661). SVM's 0.0341 recall advantage was prioritized as specified; this does not imply it is best under every business objective.
+
+The SVM learning curve used training data only:
+
+| Training rows | Mean train recall | Mean validation recall | Gap |
+|---:|---:|---:|---:|
+| 901 | 0.8164 | 0.8181 | -0.0017 |
+| 1,802 | 0.8376 | 0.8355 | 0.0021 |
+| 2,704 | 0.8358 | 0.8348 | 0.0010 |
+| 3,605 | 0.8353 | 0.8355 | -0.0001 |
+| 4,507 | 0.8355 | 0.8355 | 0.0000 |
+
+Validation recall improved by 0.0174 from the smallest to largest sample, then was effectively flat at the final sizes. The consistently close train and validation scores suggest stable generalisation within these folds; more data may help, but this curve does not establish that.
+
+### Final hold-out results
+
+After selection, the best pipeline was refit on all 5,634 training rows and evaluated on the reserved 1,409-row test set. The previous Day 1 and Day 2 artifacts were also evaluated on those same test records, without changing them.
+
+| Model | Accuracy | Precision (Yes) | Recall (Yes) | ROC-AUC |
+|---|---:|---:|---:|---:|
+| Tuned SVM (v3) | 0.6941 | 0.4575 | **0.8209** | 0.8093 |
+| Day 2 SVM champion | 0.7438 | 0.5115 | 0.7727 | 0.8211 |
+| Day 1 Logistic Regression | 0.8055 | 0.6572 | 0.5588 | 0.8419 |
+
+The tuned champion identified 307 of 374 actual churners (confusion matrix `[[671, 364], [67, 307]]`). It improved test recall versus the earlier models but traded off precision, accuracy, and ROC-AUC. The decision was made using CV results, not this test comparison.
+
+The versioned model is saved as `models/churn_v3.joblib`; its parameters, CV and test metrics, and selection metadata are in `models/churn_v3_metadata.json`. Full results are in `models/tuning_results.json`, `models/bias_variance_report.json`, `models/learning_curve_results.json`, and `models/churn_v3_test_results.json`. Day 1 and Day 2 model files remain in place.
+
+**Compatibility note:** scikit-learn 1.9.1 reports that `SVC(probability=True)` is deprecated and will be removed in 1.11. It is required by this day's SVM specification and is retained; `requirements.txt` caps the version below 1.11. The SVM grid also includes `gamma` for the linear kernel as specified, though gamma does not affect a linear SVM.

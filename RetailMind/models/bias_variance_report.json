@@ -1,0 +1,36 @@
+{
+  "cohort_median_training_recall": 0.8239966555183946,
+  "cohort_median_validation_recall": 0.7909698996655518,
+  "cohort_median_absolute_gap": 0.01839464882943148,
+  "models": {
+    "Logistic Regression": {
+      "mean_training_recall": 0.8061872909698996,
+      "mean_validation_recall": 0.8013377926421403,
+      "generalisation_gap": 0.004849498327759272,
+      "diagnosis": "Relatively good generalisation among these candidates",
+      "suggested_improvement": "Validate stability on additional data; the relative gap alone does not establish production generalisation."
+    },
+    "Decision Tree": {
+      "mean_training_recall": 0.8125418060200669,
+      "mean_validation_recall": 0.7806020066889632,
+      "generalisation_gap": 0.03193979933110369,
+      "diagnosis": "Mixed potential high-bias and high-variance signals (relative to candidates)",
+      "suggested_improvement": "Inspect the fold-level scores and feature signal before changing tree complexity; both lower relative recall and a larger relative train-validation gap are present."
+    },
+    "Random Forest": {
+      "mean_training_recall": 0.9434782608695652,
+      "mean_validation_recall": 0.7645484949832776,
+      "generalisation_gap": 0.17892976588628762,
+      "diagnosis": "Potential high variance / overfitting (relative to candidates)",
+      "suggested_improvement": "Review model complexity and regularization, and confirm the gap across additional validation data."
+    },
+    "SVM": {
+      "mean_training_recall": 0.8354515050167224,
+      "mean_validation_recall": 0.8354515050167224,
+      "generalisation_gap": 0.0,
+      "diagnosis": "Relatively good generalisation among these candidates",
+      "suggested_improvement": "Validate stability on additional data; the relative gap alone does not establish production generalisation."
+    }
+  },
+  "limitation": "Recall-based, cohort-relative diagnostics are practical indications, not a complete statistical proof of bias or variance."
+}

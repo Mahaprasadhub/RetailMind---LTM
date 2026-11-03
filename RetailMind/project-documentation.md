@@ -163,3 +163,82 @@ All three Day 2 pipelines trained and saved. They and the unchanged Logistic Reg
 ### What will be implemented on Day 3
 
 Day 3 can focus on systematic cross-validation and controlled hyperparameter optimization, while keeping the held-out test data reserved for final evaluation and preserving the Day 1 baseline for comparison.
+
+## Day 3: Multi-Model Tuning, Bias-Variance Diagnosis, and Learning Curves
+
+### Objective
+
+Systematically tune the Day 1 Logistic Regression and Day 2 Decision Tree, Random Forest, and SVM pipelines. Select a final model using training-only stratified cross-validation recall, diagnose generalisation, and evaluate the selected pipeline once on the untouched hold-out data.
+
+### Tasks completed
+
+- Reused the Day 1 loader, numeric conversion, split function, and pipeline builder without changing earlier code or artifacts.
+- Tuned all four models with the full requested grids and stratified five-fold CV on training rows only.
+- Saved each tuned estimator and actual CV scores, including train recall, validation recall, precision, and ROC-AUC.
+- Generated relative recall-based bias/variance diagnostics and a numerical learning curve for the CV champion.
+- Selected the champion using CV recall, then CV ROC-AUC and precision; kept test data out of selection.
+- Refit and evaluated the chosen complete pipeline on the hold-out set, alongside unchanged Day 1/Day 2 models for same-split context.
+- Saved the independent `churn_v3.joblib` pipeline and metadata.
+- Updated `src/predict.py` to default to v3 while preserving model selectors for Day 1 and Day 2.
+- Added this Day 3 documentation and `Docs/devlogs/day3.md`.
+
+### Files created and modified
+
+- Added `src/hyperparameter_tuning.py`, `src/bias_variance.py`, `src/learning_curves.py`, and `src/run_day3.py`.
+- Modified `src/predict.py` to default to the v3 model while retaining explicit Day 2 champion and Day 1 baseline selection.
+- Updated `README.md` and this file; created `Docs/devlogs/day3.md`.
+- Added `models/tuned_logistic_regression.joblib`, `models/tuned_decision_tree.joblib`, `models/tuned_random_forest.joblib`, and `models/tuned_svm.joblib`.
+- Added `models/tuning_results.json`, `models/bias_variance_report.json`, and `models/learning_curve_results.json`.
+- Added final artifacts `models/churn_v3.joblib`, `models/churn_v3_metadata.json`, and `models/churn_v3_test_results.json`.
+- Existing Day 1 and Day 2 model artifacts were preserved.
+
+### Hyperparameter search methodology
+
+The workflow uses five-fold `StratifiedKFold(shuffle=True, random_state=42)` inside `GridSearchCV`, with `scoring="recall"`, `return_train_score=True`, and `refit=True`. Only the 80% training split is supplied to searches. Every candidate is a complete pipeline using the existing Day 1 `ColumnTransformer`; preprocessing is fitted within each CV fold. `cross_val_score` measures precision and ROC-AUC for each best configuration, also on the training partition only.
+
+The full grids are recorded in `models/tuning_results.json`: Logistic Regression tests four `C` values and two class-weight choices; Decision Tree tests four depths, three split sizes, three leaf sizes, and two class weights; Random Forest tests two tree counts, three depths, two split sizes, two leaf sizes, and balanced weighting; SVM tests three `C` values, two kernels, two gamma values, and two class-weight choices. This is 128 candidates and 640 five-fold CV fits. No grid reductions or hold-out-guided choices were used. Gamma is included for linear SVM candidates as specified, although gamma does not affect the linear kernel.
+
+### Cross-validation results and comparison
+
+| Model | Best parameters | Mean train recall | Mean validation recall | Precision | ROC-AUC | Recall gap |
+|---|---|---:|---:|---:|---:|---:|
+| Logistic Regression | `C=1`, balanced | 0.8062 | 0.8013 | 0.5165 | 0.8459 | 0.0048 |
+| Decision Tree | depth 5, leaf 5, split 2, balanced | 0.8125 | 0.7806 | 0.5098 | 0.8296 | 0.0319 |
+| Random Forest | 100 trees, depth 10, leaf 2, split 2, balanced | 0.9435 | 0.7645 | 0.5384 | 0.8429 | 0.1789 |
+| SVM | `C=0.1`, linear, `gamma=scale`, balanced | 0.8355 | 0.8355 | 0.4661 | 0.8304 | 0.0000 |
+
+### Bias-variance and learning-curve analysis
+
+The recall-based diagnosis compares each model's train and validation recall and absolute gap against the candidate cohort medians (0.8240 training recall, 0.7910 validation recall, 0.0184 absolute gap). Logistic Regression and SVM were diagnosed as relatively good generalisers; Decision Tree showed mixed potential high-bias and high-variance signals (its train and validation recalls are both in the lower half, while its gap exceeds the cohort median); Random Forest showed potential high variance. These are practical cohort-relative signals, not universal cutoffs or statistical proof.
+
+The SVM learning curve used 901, 1,802, 2,704, 3,605, and 4,507 training rows. Corresponding mean train recalls were 0.8164, 0.8376, 0.8358, 0.8353, and 0.8355; mean validation recalls were 0.8181, 0.8355, 0.8348, 0.8355, and 0.8355. The train and validation scores converge closely around 0.835 after 1,802 rows. Validation recall improved 0.0174 overall and was flat at the last training sizes; more data may help, but this curve alone cannot establish that.
+
+### Champion selection and final evaluation
+
+**SVM was selected** with best mean CV recall 0.8355. Logistic Regression was the runner-up (0.8013 recall) and had higher CV precision (0.5165) and ROC-AUC (0.8459) than SVM (0.4661 precision, 0.8304 ROC-AUC). SVM's 0.0341 recall advantage and small train-validation gap were prioritized as required; that choice accepts a trade-off on the secondary metrics.
+
+On the untouched 1,409-row hold-out set, the tuned SVM scored accuracy 0.6941, precision 0.4575, recall 0.8209, and ROC-AUC 0.8093. Its confusion matrix, actual/predicted `[No, Yes]`, was `[[671, 364], [67, 307]]`.
+
+| Model | Accuracy | Precision (Yes) | Recall (Yes) | ROC-AUC |
+|---|---:|---:|---:|---:|
+| Tuned SVM (v3) | 0.6941 | 0.4575 | 0.8209 | 0.8093 |
+| Day 2 SVM champion | 0.7438 | 0.5115 | 0.7727 | 0.8211 |
+| Day 1 Logistic Regression | 0.8055 | 0.6572 | 0.5588 | 0.8419 |
+
+This final test comparison is for context only and did not influence champion selection.
+
+### Model persistence
+
+The complete final pipeline is saved as `models/churn_v3.joblib`; version, parameters, CV results, final metrics, and selection reason are saved in `models/churn_v3_metadata.json`. Full comparisons are persisted in `models/tuning_results.json` and `models/churn_v3_test_results.json`; diagnostics and learning curves are in `models/bias_variance_report.json` and `models/learning_curve_results.json`. Day 1 and Day 2 artifacts remained unchanged.
+
+### Challenges faced
+
+The installed scikit-learn 1.9.1 emitted a `FutureWarning` for the explicitly required `SVC(probability=True)`, which is scheduled for removal in 1.11. The setting is necessary for churn probability output; the existing dependency upper bound remains below 1.11. The required SVM grid took longer because probability estimation is calibrated for each CV fit; no search values were removed.
+
+### Final outcome
+
+The complete Day 3 workflow ran successfully: all four searches completed, diagnostics and the learning curve were saved, SVM was selected by CV recall, and the versioned pipeline was evaluated and reloaded. The default prediction service returned v3 predictions while Day 1 and Day 2 model selection continued to work.
+
+### What will be implemented on Day 4
+
+Use the next increment to investigate feature quality and controlled feature engineering while preserving the versioned Day 1–3 artifacts and ensuring any changes are assessed without test-set leakage.

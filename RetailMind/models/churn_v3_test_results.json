@@ -1,0 +1,138 @@
+{
+  "positive_class": "Churn = Yes (label 1)",
+  "test_rows": 1409,
+  "tuned_champion": {
+    "model_name": "SVM",
+    "artifact": "churn_v3.joblib",
+    "accuracy": 0.6941092973740242,
+    "precision": 0.45752608047690013,
+    "recall": 0.820855614973262,
+    "roc_auc": 0.809315663024103,
+    "confusion_matrix": [
+      [
+        671,
+        364
+      ],
+      [
+        67,
+        307
+      ]
+    ],
+    "classification_report": {
+      "No": {
+        "precision": 0.9092140921409214,
+        "recall": 0.6483091787439613,
+        "f1-score": 0.7569091934574168,
+        "support": 1035.0
+      },
+      "Yes": {
+        "precision": 0.45752608047690013,
+        "recall": 0.820855614973262,
+        "f1-score": 0.5875598086124402,
+        "support": 374.0
+      },
+      "accuracy": 0.6941092973740242,
+      "macro avg": {
+        "precision": 0.6833700863089107,
+        "recall": 0.7345823968586116,
+        "f1-score": 0.6722345010349284,
+        "support": 1409.0
+      },
+      "weighted avg": {
+        "precision": 0.7893196163692081,
+        "recall": 0.6941092973740242,
+        "f1-score": 0.711957688892462,
+        "support": 1409.0
+      }
+    }
+  },
+  "historical_models": {
+    "Day 1 Logistic Regression": {
+      "accuracy": 0.8055358410220014,
+      "precision": 0.6572327044025157,
+      "recall": 0.5588235294117647,
+      "roc_auc": 0.8418610659019866,
+      "confusion_matrix": [
+        [
+          926,
+          109
+        ],
+        [
+          165,
+          209
+        ]
+      ],
+      "classification_report": {
+        "No": {
+          "precision": 0.8487626031164069,
+          "recall": 0.8946859903381642,
+          "f1-score": 0.8711194731890874,
+          "support": 1035.0
+        },
+        "Yes": {
+          "precision": 0.6572327044025157,
+          "recall": 0.5588235294117647,
+          "f1-score": 0.6040462427745664,
+          "support": 374.0
+        },
+        "accuracy": 0.8055358410220014,
+        "macro avg": {
+          "precision": 0.7529976537594614,
+          "recall": 0.7267547598749644,
+          "f1-score": 0.7375828579818269,
+          "support": 1409.0
+        },
+        "weighted avg": {
+          "precision": 0.7979235810305337,
+          "recall": 0.8055358410220014,
+          "f1-score": 0.8002284950662835,
+          "support": 1409.0
+        }
+      }
+    },
+    "Day 2 Champion": {
+      "accuracy": 0.7437899219304471,
+      "precision": 0.511504424778761,
+      "recall": 0.7727272727272727,
+      "roc_auc": 0.8210648686352011,
+      "confusion_matrix": [
+        [
+          759,
+          276
+        ],
+        [
+          85,
+          289
+        ]
+      ],
+      "classification_report": {
+        "No": {
+          "precision": 0.8992890995260664,
+          "recall": 0.7333333333333333,
+          "f1-score": 0.8078765300691857,
+          "support": 1035.0
+        },
+        "Yes": {
+          "precision": 0.511504424778761,
+          "recall": 0.7727272727272727,
+          "f1-score": 0.6155484558040468,
+          "support": 374.0
+        },
+        "accuracy": 0.7437899219304471,
+        "macro avg": {
+          "precision": 0.7053967621524138,
+          "recall": 0.7530303030303029,
+          "f1-score": 0.7117124929366163,
+          "support": 1409.0
+        },
+        "weighted avg": {
+          "precision": 0.7963569005512671,
+          "recall": 0.7437899219304471,
+          "f1-score": 0.7568256430747485,
+          "support": 1409.0
+        }
+      }
+    }
+  },
+  "limitations": []
+}

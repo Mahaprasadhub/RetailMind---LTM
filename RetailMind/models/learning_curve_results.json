@@ -1,0 +1,56 @@
+{
+  "model_name": "SVM",
+  "scoring": "recall",
+  "cross_validation": {
+    "method": "StratifiedKFold",
+    "n_splits": 5,
+    "shuffle": true,
+    "random_state": 42,
+    "data": "training split only"
+  },
+  "training_sizes": [
+    {
+      "training_rows": 901,
+      "mean_training_recall": 0.8163785938241623,
+      "std_training_recall": 0.038758769666881236,
+      "mean_validation_recall": 0.8180602006688963,
+      "std_validation_recall": 0.02490235514245655,
+      "recall_gap": -0.0016816068447339516
+    },
+    {
+      "training_rows": 1802,
+      "mean_training_recall": 0.8375959403545012,
+      "std_training_recall": 0.014076076907495459,
+      "mean_validation_recall": 0.8354515050167224,
+      "std_validation_recall": 0.01908407039155464,
+      "recall_gap": 0.0021444353377788605
+    },
+    {
+      "training_rows": 2704,
+      "mean_training_recall": 0.8357637977702508,
+      "std_training_recall": 0.00919873246595931,
+      "mean_validation_recall": 0.8347826086956521,
+      "std_validation_recall": 0.019455571334112343,
+      "recall_gap": 0.000981189074598654
+    },
+    {
+      "training_rows": 3605,
+      "mean_training_recall": 0.835303860968971,
+      "std_training_recall": 0.004374277794265459,
+      "mean_validation_recall": 0.8354515050167224,
+      "std_validation_recall": 0.01908407039155464,
+      "recall_gap": -0.00014764404775136075
+    },
+    {
+      "training_rows": 4507,
+      "mean_training_recall": 0.8354515050167224,
+      "std_training_recall": 0.004771017597888668,
+      "mean_validation_recall": 0.8354515050167224,
+      "std_validation_recall": 0.01908407039155464,
+      "recall_gap": 0.0
+    }
+  ],
+  "interpretation_guidance": "A high training score with lower validation score suggests overfitting; low scores on both suggest underfitting; strong, converging scores suggest better generalisation. Validation that continues improving at larger training sizes suggests more data may help. These patterns are visualized numerically here; no plot library is introduced.",
+  "observed_trend": "Mean validation recall improved by 0.0174 from the smallest to largest training size; additional data may be useful, but this curve alone cannot establish that.",
+  "limitation": "Learning curves are diagnostics from one dataset and split; they do not replace external validation."
+}

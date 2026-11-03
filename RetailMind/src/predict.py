@@ -17,33 +17,39 @@ else:
 
 
 MODEL_DIRECTORY = PROJECT_ROOT / "models"
+V3_MODEL_PATH = MODEL_DIRECTORY / "churn_v3.joblib"
+V3_METADATA_PATH = MODEL_DIRECTORY / "churn_v3_metadata.json"
 CHAMPION_MODEL_PATH = MODEL_DIRECTORY / "champion_model.joblib"
 CHAMPION_METADATA_PATH = MODEL_DIRECTORY / "champion_metadata.json"
 
 
-def predict(customer_data, model="champion"):
-    """Return a churn prediction using the champion or Day 1 baseline model."""
+def predict(customer_data, model="v3"):
+    """Return a churn prediction using v3, the Day 2 champion, or Day 1 baseline."""
     if not isinstance(customer_data, dict):
         raise TypeError("customer_data must be a dictionary of feature values.")
     if any(not isinstance(column, str) for column in customer_data):
         raise ValueError("All customer_data keys must be feature names (strings).")
     model_paths = {
+        "v3": V3_MODEL_PATH,
         "champion": CHAMPION_MODEL_PATH,
         "logistic_regression": MODEL_PATH,
     }
     if not isinstance(model, str) or model not in model_paths:
         raise ValueError(
-            "model must be 'champion' or 'logistic_regression'."
+            "model must be 'v3', 'champion', or 'logistic_regression'."
         )
     model_path = model_paths[model]
     if not model_path.is_file():
-        required_command = (
-            "python -m src.train_models and python -m src.compare_models"
-            if model == "champion"
-            else "python -m src.train"
-        )
+        required_commands = {
+            "v3": "python -m src.run_day3",
+            "champion": (
+                "python -m src.train_models and python -m src.compare_models"
+            ),
+            "logistic_regression": "python -m src.train",
+        }
         raise FileNotFoundError(
-            f"Requested model not found: {model_path}. Run `{required_command}` first."
+            f"Requested model not found: {model_path}. "
+            f"Run `{required_commands[model]}` first."
         )
 
     pipeline = joblib.load(model_path)
@@ -87,16 +93,25 @@ def predict(customer_data, model="champion"):
         pipeline.predict_proba(customer_frame)[0, positive_class_index]
     )
     prediction = "Yes" if predicted_class == 1 else "No"
-    if model == "champion":
-        if not CHAMPION_METADATA_PATH.is_file():
+    metadata_paths = {
+        "v3": V3_METADATA_PATH,
+        "champion": CHAMPION_METADATA_PATH,
+    }
+    if model in metadata_paths:
+        metadata_path = metadata_paths[model]
+        if not metadata_path.is_file():
             raise FileNotFoundError(
-                f"Champion metadata not found: {CHAMPION_METADATA_PATH}. "
-                "Run `python -m src.compare_models` to create it."
+                f"Model metadata not found: {metadata_path}. "
+                f"Run `{('python -m src.run_day3' if model == 'v3' else 'python -m src.compare_models')}` "
+                "to create it."
             )
-        with CHAMPION_METADATA_PATH.open("r", encoding="utf-8") as metadata_file:
-            model_used = json.load(metadata_file)["name"]
+        with metadata_path.open("r", encoding="utf-8") as metadata_file:
+            model_metadata = json.load(metadata_file)
+        model_used = model_metadata.get("model_name", model_metadata.get("name"))
+        model_version = model_metadata.get("model_version", "day2")
     else:
         model_used = "Logistic Regression"
+        model_version = "day1"
 
     if churn_probability >= 0.70:
         risk_status = "High Risk"
@@ -110,6 +125,7 @@ def predict(customer_data, model="champion"):
         "churn_probability": churn_probability,
         "status": risk_status,
         "model_used": model_used,
+        "model_version": model_version,
     }
 
 

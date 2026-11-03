@@ -1,0 +1,74 @@
+{
+  "model_name": "SVM",
+  "model_version": "v3",
+  "artifact": "churn_v3.joblib",
+  "best_hyperparameters": {
+    "classifier__C": 0.1,
+    "classifier__class_weight": "balanced",
+    "classifier__gamma": "scale",
+    "classifier__kernel": "linear"
+  },
+  "best_cross_validation_recall": 0.8354515050167224,
+  "cross_validation_metrics": {
+    "mean_training_recall": 0.8354515050167224,
+    "mean_validation_recall": 0.8354515050167224,
+    "std_training_recall": 0.004771017597888668,
+    "std_validation_recall": 0.01908407039155464,
+    "training_validation_recall_gap": 0.0,
+    "mean_precision": 0.4660959900480611,
+    "std_precision": 0.004975356433871103,
+    "mean_roc_auc": 0.8304010445455943,
+    "std_roc_auc": 0.00620955670041402
+  },
+  "final_test_metrics": {
+    "accuracy": 0.6941092973740242,
+    "precision": 0.45752608047690013,
+    "recall": 0.820855614973262,
+    "roc_auc": 0.809315663024103
+  },
+  "historical_test_metrics": {
+    "Day 1 Logistic Regression": {
+      "accuracy": 0.8055358410220014,
+      "precision": 0.6572327044025157,
+      "recall": 0.5588235294117647,
+      "roc_auc": 0.8418610659019866
+    },
+    "Day 2 Champion": {
+      "accuracy": 0.7437899219304471,
+      "precision": 0.511504424778761,
+      "recall": 0.7727272727272727,
+      "roc_auc": 0.8210648686352011
+    }
+  },
+  "training_configuration": {
+    "train_test_split": {
+      "test_size": 0.2,
+      "random_state": 42,
+      "stratified": true,
+      "training_rows": 5634,
+      "test_rows": 1409
+    },
+    "cross_validation": {
+      "method": "StratifiedKFold",
+      "n_splits": 5,
+      "shuffle": true,
+      "random_state": 42,
+      "search_scoring": "recall",
+      "return_train_score": true,
+      "refit": true,
+      "fit_data": "training split only",
+      "training_rows": 5634
+    },
+    "selection_reason": "Selected SVM by the highest mean cross-validation churn recall (0.8355); ROC-AUC and precision are tie-breakers. The hold-out test set was not used for selection. The runner-up is Logistic Regression (recall 0.8013, ROC-AUC 0.8459, recall gap 0.0048); the champion's recall gap is 0.0000 and its diagnosis is 'Relatively good generalisation among these candidates'.",
+    "selection_uses_holdout_test": false,
+    "bias_variance_diagnosis": "Relatively good generalisation among these candidates",
+    "scikit_learn_version": "1.9.1",
+    "dataset_file": "WA_Fn-UseC_-Telco-Customer-Churn.csv"
+  },
+  "learning_curve": {
+    "results_file": "learning_curve_results.json",
+    "observed_trend": "Mean validation recall improved by 0.0174 from the smallest to largest training size; additional data may be useful, but this curve alone cannot establish that."
+  },
+  "test_results_file": "churn_v3_test_results.json",
+  "limitations": []
+}

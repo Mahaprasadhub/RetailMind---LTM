@@ -1,0 +1,228 @@
+{
+  "positive_class": "Churn = Yes (label 1)",
+  "selection_metric": "recall",
+  "cross_validation": {
+    "method": "StratifiedKFold",
+    "n_splits": 5,
+    "shuffle": true,
+    "random_state": 42,
+    "search_scoring": "recall",
+    "return_train_score": true,
+    "refit": true,
+    "fit_data": "training split only",
+    "training_rows": 5634
+  },
+  "search_grids": {
+    "Logistic Regression": {
+      "classifier__C": [
+        0.01,
+        0.1,
+        1,
+        10
+      ],
+      "classifier__class_weight": [
+        null,
+        "balanced"
+      ]
+    },
+    "Decision Tree": {
+      "classifier__max_depth": [
+        5,
+        10,
+        20,
+        null
+      ],
+      "classifier__min_samples_split": [
+        2,
+        5,
+        10
+      ],
+      "classifier__min_samples_leaf": [
+        1,
+        2,
+        5
+      ],
+      "classifier__class_weight": [
+        null,
+        "balanced"
+      ]
+    },
+    "Random Forest": {
+      "classifier__n_estimators": [
+        100,
+        200
+      ],
+      "classifier__max_depth": [
+        10,
+        20,
+        null
+      ],
+      "classifier__min_samples_split": [
+        2,
+        5
+      ],
+      "classifier__min_samples_leaf": [
+        1,
+        2
+      ],
+      "classifier__class_weight": [
+        "balanced"
+      ]
+    },
+    "SVM": {
+      "classifier__C": [
+        0.1,
+        1,
+        10
+      ],
+      "classifier__kernel": [
+        "rbf",
+        "linear"
+      ],
+      "classifier__gamma": [
+        "scale",
+        "auto"
+      ],
+      "classifier__class_weight": [
+        null,
+        "balanced"
+      ]
+    }
+  },
+  "models": {
+    "Logistic Regression": {
+      "best_params": {
+        "classifier__C": 1,
+        "classifier__class_weight": "balanced"
+      },
+      "best_cv_recall": 0.8013377926421403,
+      "mean_training_recall": 0.8061872909698996,
+      "std_training_recall": 0.005850453406199294,
+      "mean_validation_recall": 0.8013377926421403,
+      "std_validation_recall": 0.037932968237479145,
+      "training_validation_recall_gap": 0.004849498327759272,
+      "mean_precision": 0.5164818566895508,
+      "std_precision": 0.018900944216023587,
+      "mean_roc_auc": 0.8459495012172488,
+      "std_roc_auc": 0.012378974419374121,
+      "artifact": "tuned_logistic_regression.joblib",
+      "best_estimator_refit_on_training_data": true,
+      "bias_variance_diagnosis": "Relatively good generalisation among these candidates",
+      "suggested_improvement": "Validate stability on additional data; the relative gap alone does not establish production generalisation."
+    },
+    "Decision Tree": {
+      "best_params": {
+        "classifier__class_weight": "balanced",
+        "classifier__max_depth": 5,
+        "classifier__min_samples_leaf": 5,
+        "classifier__min_samples_split": 2
+      },
+      "best_cv_recall": 0.7806020066889632,
+      "mean_training_recall": 0.8125418060200669,
+      "std_training_recall": 0.029124847311343134,
+      "mean_validation_recall": 0.7806020066889632,
+      "std_validation_recall": 0.03498781760701545,
+      "training_validation_recall_gap": 0.03193979933110369,
+      "mean_precision": 0.5098294638450058,
+      "std_precision": 0.012141326699064715,
+      "mean_roc_auc": 0.8296359242169137,
+      "std_roc_auc": 0.015263226868140885,
+      "artifact": "tuned_decision_tree.joblib",
+      "best_estimator_refit_on_training_data": true,
+      "bias_variance_diagnosis": "Mixed potential high-bias and high-variance signals (relative to candidates)",
+      "suggested_improvement": "Inspect the fold-level scores and feature signal before changing tree complexity; both lower relative recall and a larger relative train-validation gap are present."
+    },
+    "Random Forest": {
+      "best_params": {
+        "classifier__class_weight": "balanced",
+        "classifier__max_depth": 10,
+        "classifier__min_samples_leaf": 2,
+        "classifier__min_samples_split": 2,
+        "classifier__n_estimators": 100
+      },
+      "best_cv_recall": 0.7645484949832776,
+      "mean_training_recall": 0.9434782608695652,
+      "std_training_recall": 0.0032854318903659586,
+      "mean_validation_recall": 0.7645484949832776,
+      "std_validation_recall": 0.016868923361763898,
+      "training_validation_recall_gap": 0.17892976588628762,
+      "mean_precision": 0.5384335105077368,
+      "std_precision": 0.014964562608484814,
+      "mean_roc_auc": 0.8429212687746732,
+      "std_roc_auc": 0.010373619045685512,
+      "artifact": "tuned_random_forest.joblib",
+      "best_estimator_refit_on_training_data": true,
+      "bias_variance_diagnosis": "Potential high variance / overfitting (relative to candidates)",
+      "suggested_improvement": "Review model complexity and regularization, and confirm the gap across additional validation data."
+    },
+    "SVM": {
+      "best_params": {
+        "classifier__C": 0.1,
+        "classifier__class_weight": "balanced",
+        "classifier__gamma": "scale",
+        "classifier__kernel": "linear"
+      },
+      "best_cv_recall": 0.8354515050167224,
+      "mean_training_recall": 0.8354515050167224,
+      "std_training_recall": 0.004771017597888668,
+      "mean_validation_recall": 0.8354515050167224,
+      "std_validation_recall": 0.01908407039155464,
+      "training_validation_recall_gap": 0.0,
+      "mean_precision": 0.4660959900480611,
+      "std_precision": 0.004975356433871103,
+      "mean_roc_auc": 0.8304010445455943,
+      "std_roc_auc": 0.00620955670041402,
+      "artifact": "tuned_svm.joblib",
+      "best_estimator_refit_on_training_data": true,
+      "bias_variance_diagnosis": "Relatively good generalisation among these candidates",
+      "suggested_improvement": "Validate stability on additional data; the relative gap alone does not establish production generalisation."
+    }
+  },
+  "bias_variance_method": "Relative screening heuristic across the tuned candidates: compare mean training and validation recall and their absolute gaps to the cohort medians. Lower-half training and validation scores suggest potential high bias; an above-median positive gap suggests potential high variance; above-median validation recall with an at-or-below-median gap suggests relatively better generalisation. Other patterns are mixed. The medians are cohort-relative indicators, not universal cutoffs or statistical proof.",
+  "bias_variance": {
+    "cohort_median_training_recall": 0.8239966555183946,
+    "cohort_median_validation_recall": 0.7909698996655518,
+    "cohort_median_absolute_gap": 0.01839464882943148,
+    "models": {
+      "Logistic Regression": {
+        "mean_training_recall": 0.8061872909698996,
+        "mean_validation_recall": 0.8013377926421403,
+        "generalisation_gap": 0.004849498327759272,
+        "diagnosis": "Relatively good generalisation among these candidates",
+        "suggested_improvement": "Validate stability on additional data; the relative gap alone does not establish production generalisation."
+      },
+      "Decision Tree": {
+        "mean_training_recall": 0.8125418060200669,
+        "mean_validation_recall": 0.7806020066889632,
+        "generalisation_gap": 0.03193979933110369,
+        "diagnosis": "Mixed potential high-bias and high-variance signals (relative to candidates)",
+        "suggested_improvement": "Inspect the fold-level scores and feature signal before changing tree complexity; both lower relative recall and a larger relative train-validation gap are present."
+      },
+      "Random Forest": {
+        "mean_training_recall": 0.9434782608695652,
+        "mean_validation_recall": 0.7645484949832776,
+        "generalisation_gap": 0.17892976588628762,
+        "diagnosis": "Potential high variance / overfitting (relative to candidates)",
+        "suggested_improvement": "Review model complexity and regularization, and confirm the gap across additional validation data."
+      },
+      "SVM": {
+        "mean_training_recall": 0.8354515050167224,
+        "mean_validation_recall": 0.8354515050167224,
+        "generalisation_gap": 0.0,
+        "diagnosis": "Relatively good generalisation among these candidates",
+        "suggested_improvement": "Validate stability on additional data; the relative gap alone does not establish production generalisation."
+      }
+    },
+    "limitation": "Recall-based, cohort-relative diagnostics are practical indications, not a complete statistical proof of bias or variance."
+  },
+  "champion_selection": {
+    "model_name": "SVM",
+    "selection_metric": "mean cross-validation recall",
+    "tie_breakers": [
+      "mean cross-validation ROC-AUC",
+      "mean cross-validation precision"
+    ],
+    "selection_reason": "Selected SVM by the highest mean cross-validation churn recall (0.8355); ROC-AUC and precision are tie-breakers. The hold-out test set was not used for selection. The runner-up is Logistic Regression (recall 0.8013, ROC-AUC 0.8459, recall gap 0.0048); the champion's recall gap is 0.0000 and its diagnosis is 'Relatively good generalisation among these candidates'.",
+    "runner_up": "Logistic Regression"
+  }
+}
