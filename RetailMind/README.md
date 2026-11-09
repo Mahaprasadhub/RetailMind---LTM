@@ -29,9 +29,10 @@ Observed target distribution:
 - pandas
 - scikit-learn
 - joblib
+- TensorFlow/Keras (Day 5 neural-network examples)
 - Python standard library
 
-No other machine-learning or web framework libraries are used.
+The classical churn models use scikit-learn. TensorFlow/Keras is used for the separate Day 5 neural-network examples.
 
 ## Project structure
 
@@ -52,6 +53,8 @@ RetailMind/
 |   |-- run_day3.py
 |   |-- feature_engineering.py
 |   |-- train_ensembles.py
+|   |-- mnist_demo.py
+|   |-- train_ann.py
 |   `-- predict.py
 |-- models/
 |   |-- churn_pipeline.joblib
@@ -76,14 +79,18 @@ RetailMind/
 |   |-- day_4_*.joblib
 |   |-- day4_comparison.json
 |   |-- churn_v4.joblib
-|   `-- churn_v4_metadata.json
+|   |-- churn_v4_metadata.json
+|   |-- churn_ann_v5.keras
+|   |-- churn_ann_preprocessor.joblib
+|   `-- churn_ann_v5_metadata.json
 |-- notebooks/
 |-- Docs/
 |   `-- devlogs/
 |       |-- day1.md
 |       |-- day2.md
 |       |-- day3.md
-|       `-- day4.md
+|       |-- day4.md
+|       `-- day5.md
 |-- .gitignore
 |-- project-documentation.md
 |-- README.md
@@ -363,3 +370,61 @@ python src\predict.py
 ```
 
 The Day 4 script reports classification reports and confusion matrices for each test-set candidate, then saves all candidate pipelines and the selected v4 pipeline. XGBoost is an additional dependency from Day 4 onward.
+
+## Phase 2 — Day 5: Neural networks
+
+Phase 2 adds a small neural-network lesson and a churn ANN experiment. It does not replace the saved Day 4 SVM or any earlier classical model.
+
+### What is an ANN?
+
+An artificial neural network (ANN) is a set of connected layers that learn patterns from examples. Each layer transforms the numbers it receives; training adjusts the connections to reduce prediction error. An ANN can learn useful combinations of input features, but it does not automatically outperform simpler methods.
+
+### MNIST learning demo
+
+`src/mnist_demo.py` loads handwritten digits using Keras' built-in MNIST loader. It shows a few images as small text pixel previews, rescales pixel values from 0–255 to 0–1, flattens each 28-by-28 image to 784 numbers, and trains Dense ReLU layers followed by a 10-class Softmax output. It evaluates real test accuracy and predicts labels for five test images. MNIST is a separate teaching example and is not part of churn training.
+
+### Churn ANN and preprocessing
+
+The churn model uses a feed-forward network with Dense(64, ReLU), Dropout(0.3), Dense(32, ReLU), and Dense(1, sigmoid). Adam and binary cross-entropy train it to predict `Churn` (`No=0`, `Yes=1`).
+
+The ANN uses the same original 19 customer features as the Phase-1 champion and Day 4 SVM: numeric `SeniorCitizen`, `tenure`, `MonthlyCharges`, and `TotalCharges`; categorical `gender`, `Partner`, `Dependents`, `PhoneService`, `MultipleLines`, `InternetService`, `OnlineSecurity`, `OnlineBackup`, `DeviceProtection`, `TechSupport`, `StreamingTV`, `StreamingMovies`, `Contract`, `PaperlessBilling`, and `PaymentMethod`. `customerID` and `Churn` are not model inputs. Blank `TotalCharges` is converted to missing. Numeric columns are median-imputed and standardized; categorical columns are most-frequent-imputed and one-hot encoded with unknown categories ignored. Preprocessing is fitted on training records only.
+
+The models share the stratified 80:20 test split (`random_state=42`). A validation set is carved from the training records. Early stopping monitors validation loss, stops after 10 epochs without improvement, and restores the best weights; the held-out test set is not used to make training decisions. ANN churn predictions use a probability threshold of 0.50. The classical SVMs retain their own saved `predict()` decision rule because thresholding their calibrated probabilities would change their existing behavior. Risk bands in the prediction service continue to use 0.40 and 0.70.
+
+### Day 5 measured results
+
+The table below is populated from the run's actual predictions on the same 1,409 test customers. Recall is for `Churn=Yes`. The Phase-1 champion and Day 4 production model are listed separately because they are distinct saved SVM artifacts. Full confusion matrices, classification reports, training history, and split fingerprint are in `models/churn_ann_v5_metadata.json`.
+
+| Model | Accuracy | Precision (Yes) | Recall (Yes) | F1 (Yes) | ROC-AUC |
+|---|---:|---:|---:|---:|---:|
+| Phase-1 champion (SVM) | 0.7438 | 0.5115 | 0.7727 | 0.6155 | 0.8211 |
+| Day 4 production model (SVM) | 0.6941 | 0.4575 | **0.8209** | 0.5876 | 0.8093 |
+| Day 5 Keras ANN | **0.7956** | **0.6593** | 0.4759 | 0.5528 | **0.8390** |
+
+The ANN had higher accuracy, precision, and ROC-AUC, but it found fewer actual churners at the selected threshold: its recall was 0.4759, compared with 0.8209 for the Day 4 production SVM. Because churn recall is the primary business metric here, keep the classical Day 4 model as the production choice. This single split is not proof that an ANN is never useful; it shows that this ANN did not improve the agreed primary metric in this experiment.
+
+The MNIST demonstration reached **0.9657 test accuracy** after five epochs. For the churn ANN, early stopping triggered after 14 epochs (best validation-loss epoch: 4); the last recorded training/validation loss was 0.4067/0.4254, and accuracy was 0.8070/0.8121. The model restores best-epoch weights before evaluation. It has 5,057 trainable parameters and needs the TensorFlow runtime plus a separate fitted preprocessing artifact.
+
+**Practical note:** Classical ML models such as Random Forest and XGBoost are often strong choices for structured tabular datasets. ANNs can be valuable when the data size, complexity, and learned representations justify their additional training and deployment complexity.
+
+### Install, train, and predict with Day 5
+
+From the `RetailMind` directory:
+
+```powershell
+python -m pip install -r requirements.txt
+python -m src.mnist_demo
+python -m src.train_ann
+```
+
+The MNIST dataset is downloaded by Keras into its normal local cache and is not copied into the repository. Churn training saves `models/churn_ann_v5.keras`, its fitted preprocessor in `models/churn_ann_preprocessor.joblib`, and measured configuration/results in `models/churn_ann_v5_metadata.json`. The saved Keras model is reloaded and re-evaluated by the training script.
+
+Select `model="ann"` to use ANN inference or `model="classical"` to use the unchanged Day 4 production SVM. The existing default (`model="v4"`) and previous selectors remain available. ANN inference applies the saved preprocessor before calling Keras:
+
+```python
+from src.predict import predict
+
+result = predict(customer, model="ann")
+```
+
+Both models return the existing prediction fields, including `prediction`, `churn_probability`, `status`, and model version/name.

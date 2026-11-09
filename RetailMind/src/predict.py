@@ -23,6 +23,9 @@ V3_MODEL_PATH = MODEL_DIRECTORY / "churn_v3.joblib"
 V3_METADATA_PATH = MODEL_DIRECTORY / "churn_v3_metadata.json"
 CHAMPION_MODEL_PATH = MODEL_DIRECTORY / "champion_model.joblib"
 CHAMPION_METADATA_PATH = MODEL_DIRECTORY / "champion_metadata.json"
+ANN_MODEL_PATH = MODEL_DIRECTORY / "churn_ann_v5.keras"
+ANN_PREPROCESSOR_PATH = MODEL_DIRECTORY / "churn_ann_preprocessor.joblib"
+ANN_METADATA_PATH = MODEL_DIRECTORY / "churn_ann_v5_metadata.json"
 
 
 def predict(customer_data, model="v4"):
@@ -32,32 +35,54 @@ def predict(customer_data, model="v4"):
     if any(not isinstance(column, str) for column in customer_data):
         raise ValueError("All customer_data keys must be feature names (strings).")
     model_paths = {
+        "classical": V4_MODEL_PATH,
         "v4": V4_MODEL_PATH,
         "v3": V3_MODEL_PATH,
         "champion": CHAMPION_MODEL_PATH,
         "logistic_regression": MODEL_PATH,
+        "ann": ANN_MODEL_PATH,
     }
     if not isinstance(model, str) or model not in model_paths:
         raise ValueError(
-            "model must be 'v4', 'v3', 'champion', or 'logistic_regression'."
+            "model must be 'classical', 'v4', 'v3', 'champion', "
+            "'logistic_regression', or 'ann'."
         )
+    required_commands = {
+        "classical": "python -m src.train_ensembles",
+        "v4": "python -m src.train_ensembles",
+        "v3": "python -m src.run_day3",
+        "champion": (
+            "python -m src.train_models and python -m src.compare_models"
+        ),
+        "logistic_regression": "python -m src.train",
+        "ann": "python -m src.train_ann",
+    }
     model_path = model_paths[model]
     if not model_path.is_file():
-        required_commands = {
-            "v4": "python -m src.train_ensembles",
-            "v3": "python -m src.run_day3",
-            "champion": (
-                "python -m src.train_models and python -m src.compare_models"
-            ),
-            "logistic_regression": "python -m src.train",
-        }
         raise FileNotFoundError(
             f"Requested model not found: {model_path}. "
             f"Run `{required_commands[model]}` first."
         )
 
-    pipeline = joblib.load(model_path)
-    expected_columns = list(pipeline.feature_names_in_)
+    if model == "ann":
+        if not ANN_PREPROCESSOR_PATH.is_file():
+            raise FileNotFoundError(
+                f"ANN preprocessor not found: {ANN_PREPROCESSOR_PATH}. "
+                f"Run `{required_commands[model]}` first."
+            )
+        if not ANN_METADATA_PATH.is_file():
+            raise FileNotFoundError(
+                f"ANN metadata not found: {ANN_METADATA_PATH}. "
+                f"Run `{required_commands[model]}` first."
+            )
+        import tensorflow as tf
+
+        model_metadata = json.loads(ANN_METADATA_PATH.read_text(encoding="utf-8"))
+        preprocessor = joblib.load(ANN_PREPROCESSOR_PATH)
+        expected_columns = list(preprocessor.feature_names_in_)
+    else:
+        pipeline = joblib.load(model_path)
+        expected_columns = list(pipeline.feature_names_in_)
     provided_columns = set(customer_data)
     expected_column_set = set(expected_columns)
     missing_columns = sorted(expected_column_set - provided_columns)
@@ -74,8 +99,11 @@ def predict(customer_data, model="v4"):
         [{column: customer_data[column] for column in expected_columns}],
         columns=expected_columns,
     )
-    preprocessor = pipeline.named_steps["preprocessor"]
-    numeric_columns = preprocessor.transformers_[0][2]
+    if model == "ann":
+        numeric_columns = model_metadata["preprocessing"]["numeric_columns"]
+    else:
+        preprocessor = pipeline.named_steps["preprocessor"]
+        numeric_columns = preprocessor.transformers_[0][2]
     for column in numeric_columns:
         if column not in customer_frame.columns:
             continue
@@ -90,19 +118,32 @@ def predict(customer_data, model="v4"):
             raise ValueError(f"Feature '{column}' must contain a numeric value.")
         customer_frame[column] = converted_values
 
-    predicted_class = int(pipeline.predict(customer_frame)[0])
-    class_labels = list(pipeline.named_steps["classifier"].classes_)
-    if 1 not in class_labels:
-        raise ValueError("The fitted classifier does not contain the churn-positive class.")
-    positive_class_index = class_labels.index(1)
-    churn_probability = float(
-        pipeline.predict_proba(customer_frame)[0, positive_class_index]
-    )
+    if model == "ann":
+        transformed_customer = preprocessor.transform(customer_frame)
+        keras_model = tf.keras.models.load_model(model_path)
+        churn_probability = float(
+            keras_model.predict(transformed_customer, verbose=0).reshape(-1)[0]
+        )
+        threshold = float(model_metadata["classification_threshold"])
+        predicted_class = int(churn_probability >= threshold)
+    else:
+        predicted_class = int(pipeline.predict(customer_frame)[0])
+        class_labels = list(pipeline.named_steps["classifier"].classes_)
+        if 1 not in class_labels:
+            raise ValueError(
+                "The fitted classifier does not contain the churn-positive class."
+            )
+        positive_class_index = class_labels.index(1)
+        churn_probability = float(
+            pipeline.predict_proba(customer_frame)[0, positive_class_index]
+        )
     prediction = "Yes" if predicted_class == 1 else "No"
     metadata_paths = {
+        "classical": V4_METADATA_PATH,
         "v4": V4_METADATA_PATH,
         "v3": V3_METADATA_PATH,
         "champion": CHAMPION_METADATA_PATH,
+        "ann": ANN_METADATA_PATH,
     }
     if model in metadata_paths:
         metadata_path = metadata_paths[model]
@@ -114,10 +155,14 @@ def predict(customer_data, model="v4"):
             )
         with metadata_path.open("r", encoding="utf-8") as metadata_file:
             model_metadata = json.load(metadata_file)
-        model_used = model_metadata.get("model_name", model_metadata.get("name"))
-        model_version = model_metadata.get(
-            "model_version", "v3" if model == "v3" else "day2"
-        )
+        if model == "ann":
+            model_used = model_metadata["model_name"]
+            model_version = model_metadata["version"]
+        else:
+            model_used = model_metadata.get("model_name", model_metadata.get("name"))
+            model_version = model_metadata.get(
+                "model_version", "v3" if model == "v3" else "day2"
+            )
     else:
         model_used = "Logistic Regression"
         model_version = "day1"

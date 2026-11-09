@@ -316,4 +316,68 @@ All six Day 4 RF/XGBoost variants and the Day 3 champion were trained/evaluated 
 
 ### What will be implemented on Day 5
 
-Continue the 35-day plan with the next requested increment only after defining its scope; retain the versioned v1–v4 artifacts and use fresh validation for future changes.
+The planned next increment was the neural-network experiment documented below. All v1–v4 artifacts remain preserved.
+
+## Day 5: Neural Networks and ANN (Keras)
+
+### Objective
+
+Add a standalone MNIST ANN lesson, train a feed-forward Keras ANN for Telco churn, and compare it honestly with the saved Phase-1 champion and Day 4 production model. Keep the older classical models and current classical prediction default unchanged.
+
+### MNIST implementation
+
+`src/mnist_demo.py` loads MNIST through `tf.keras.datasets.mnist`, prints the train/test shapes, and displays three examples as text pixel art with their labels. It normalizes pixel values to 0–1, flattens each 28x28 image to 784 values, and trains a Sequential network with Dense(128, ReLU), Dense(64, ReLU), and Dense(10, Softmax). It uses Adam, sparse categorical cross-entropy, five epochs, and batch size 128 by default. It prints actual test accuracy and predictions for five test images. MNIST is not used in churn training and its data is not committed to the repository.
+
+### Churn model and preprocessing
+
+The churn ANN has Dense(64, ReLU), Dropout(0.3), Dense(32, ReLU), and Dense(1, sigmoid) layers. It uses Adam (learning rate 0.001), binary cross-entropy, and accuracy, precision, recall, and AUC metrics.
+
+The Phase-1 SVM champion and Day 4 production SVM both expect the same 19 original inputs. The ANN uses those exact features, not Day 4's engineered variant: numeric `SeniorCitizen`, `tenure`, `MonthlyCharges`, `TotalCharges`; categorical `gender`, `Partner`, `Dependents`, `PhoneService`, `MultipleLines`, `InternetService`, `OnlineSecurity`, `OnlineBackup`, `DeviceProtection`, `TechSupport`, `StreamingTV`, `StreamingMovies`, `Contract`, `PaperlessBilling`, and `PaymentMethod`. The target is `Churn` (`No=0`, `Yes=1`); `customerID` and the target are dropped from input. `TotalCharges` is safely converted to numeric, missing numeric values use the training median and are standardized, and missing categorical values use the training most-frequent category before one-hot encoding. Unknown categories are ignored. The fitted preprocessing object is saved and reused during ANN inference.
+
+### Training and early stopping
+
+The training script recreates the same stratified 80:20 split (`random_state=42`) as the classical project. It uses a further stratified validation subset from training data; the held-out 20% is not used for fitting or early-stopping decisions. Training allows up to 100 epochs with batch size 32. EarlyStopping monitors `val_loss`, waits 10 epochs for improvement, and restores the best weights. The metadata records epoch-by-epoch training/validation loss and accuracy, best epoch, stopping epoch, and whether training stopped before the maximum. These values below are actual run results and must not be filled with estimates.
+
+- Epoch stopped / maximum epochs: 14 / 100
+- Best validation-loss epoch: 4
+- Early stopping triggered before maximum: yes
+- Final recorded training loss / validation loss: 0.4067 / 0.4254
+- Final recorded training accuracy / validation accuracy: 0.8070 / 0.8121
+
+The MNIST demo achieved 0.9657 test accuracy after five epochs. These are outputs from the run, not promised scores for future training sessions.
+
+### Test evaluation and comparison
+
+All three pipelines are evaluated against the same 1,409 held-out original customer records and the same binary labels. The ANN uses a probability threshold of 0.50; the SVMs use their saved `predict()` decision rule, preserving existing behavior. Positive class is `Churn=Yes`. The classical pipelines each carry their own fitted preprocessing. Their common test-index hash matches the existing model evaluation: `a913d7336d00dac6936dddbf10d62cfccf7667b0538efa63a224b00c85d8afcb`.
+
+| Model | Accuracy | Precision (Yes) | Recall (Yes) | F1 (Yes) | ROC-AUC |
+|---|---:|---:|---:|---:|---:|
+| Phase-1 champion (SVM) | 0.7438 | 0.5115 | 0.7727 | 0.6155 | 0.8211 |
+| Day 4 production SVM | 0.6941 | 0.4575 | **0.8209** | 0.5876 | 0.8093 |
+| Day 5 Keras ANN | **0.7956** | **0.6593** | 0.4759 | 0.5528 | **0.8390** |
+
+The ANN confusion matrix `[actual No/Yes, predicted No/Yes]` is `[[943, 92], [196, 178]]`. Its classification report and all unrounded model metrics are stored in `models/churn_ann_v5_metadata.json`. The network has 5,057 trainable parameters and adds a TensorFlow runtime and a separate fitted preprocessing artifact. At threshold 0.50 the ANN improves accuracy, precision, and ROC-AUC, but its churn recall (0.4759) is lower than the Phase-1 champion (0.7727) and Day 4 production SVM (0.8209). Therefore, the Day 4 SVM remains the recommended production model for the stated recall-first objective. The ANN is not the winner for this business goal.
+
+### Persistence and prediction service
+
+- The ANN is saved to `models/churn_ann_v5.keras`.
+- Its training-fitted preprocessor is saved to `models/churn_ann_preprocessor.joblib`.
+- `models/churn_ann_v5_metadata.json` records its architecture, dependencies/configuration, split, threshold, training history, early-stopping outcome, evaluation, and classical comparison.
+- The training script reloads the saved Keras model and verifies it reproduces the same test metrics.
+- `src/predict.py` accepts `model="ann"` for ANN inference and `model="classical"` for the existing Day 4 pipeline. Its default remains `v4`, and the previous model selectors are retained.
+- ANN inference loads the saved transformer and model, checks the same expected 19 raw input features, converts numeric fields, safely imputes missing values, ignores unknown categories, and returns the established prediction/probability/risk/version fields.
+- Prediction check on an input with missing `TotalCharges` and an unseen `InternetService` value: `Yes`, probability 0.5883, `Medium Risk`, model version `v5-ann`. The classical default and explicit classical selector also returned valid predictions.
+
+### Files created and modified
+
+- Created `src/mnist_demo.py` and `src/train_ann.py`.
+- Modified `src/predict.py` to add explicit classical/ANN model selection without changing the existing default.
+- Modified `requirements.txt` to include TensorFlow; scikit-learn remains the preprocessing/evaluation library.
+- Updated `README.md` and appended this Day 5 section.
+- Created `Docs/devlogs/day5.md` in easy-to-follow language.
+- Created `models/churn_ann_v5.keras`, `models/churn_ann_preprocessor.joblib`, and `models/churn_ann_v5_metadata.json` after training.
+- Preserved the Phase-1 champion, Day 4 production artifact, and all prior model files.
+
+### Final conclusion
+
+The ANN learned useful patterns (its ROC-AUC was 0.8390), but at the tested threshold it missed more churners than the existing SVM models. Keep `models/churn_v4.joblib` as the production choice, while preserving the separately saved ANN for learning and further experiments. Classical models such as Random Forest and XGBoost are often strong on structured tabular data; ANNs can be useful when the data scale, complexity, and learned representations justify their added training and deployment costs. This comparison used one fixed test split and one ANN configuration; it is evidence about this experiment, not a claim that all neural networks are unsuitable for tabular data.
