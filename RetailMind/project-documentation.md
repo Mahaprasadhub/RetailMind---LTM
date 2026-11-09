@@ -449,7 +449,16 @@ Add a pretrained CNN experiment and object detection to the vision module while 
 
 Initially the pretrained backbone is frozen and only the new head is trained. Next the top 20 ResNet layers are unfrozen and fine-tuned at a lower learning rate; BatchNormalization layers stay frozen for stable small-batch fine-tuning. The default run uses a balanced 12,000-image training subset, 6,000 validation images, batch size 32, three head-training epochs, and one fine-tuning epoch. It records stage training/validation loss and accuracy and compares the transferred model with the saved Day 6 CNN on identical test records. ResNet ImageNet weights may need to download the first time.
 
-**Fashion-MNIST transfer-learning run results:** [filled with actual run output after the experiment completes].
+**Fashion-MNIST transfer-learning run results (actual run):**
+
+| Model | Test accuracy | Test loss | Macro F1 |
+|---|---:|---:|---:|
+| Day 6 scratch CNN | 0.8940 | 0.2871 | 0.8923 |
+| Day 7 ResNet50 transfer | 0.8759 | 0.3467 | 0.8757 |
+
+Both models were evaluated on the same 10,000 official Fashion-MNIST test images. The ResNet score was 1.81 percentage points lower in this run. This is not a fully controlled training-data comparison: Day 7 used 12,000 balanced training images, while Day 6 used the full training split. Treat the measured difference as a result of these two training runs, not proof that either architecture is always better.
+
+The head-only phase trained for all three planned epochs: training accuracy went from 0.7755 to 0.8607, and validation accuracy from 0.8363 to 0.8637. Fine-tuning the top 20 layers ran for its one planned epoch: training accuracy was 0.8980 and validation accuracy was 0.8845. This run used fixed epoch counts, not EarlyStopping. Validation loss decreased from 0.3689 after head training to 0.3229 after fine-tuning; the final held-out test loss was 0.3467. The weakest class by F1 was Shirt (0.6718). Common confusions included Shirt as T-shirt/top (120 examples), Shirt as Coat (101), and T-shirt/top as Shirt (98).
 
 These are Fashion-MNIST results, not Fashion Product Images (Small) scores. Real catalog classification still requires downloading the catalog photos and labels and rerunning training on those records.
 
@@ -457,7 +466,7 @@ These are Fashion-MNIST results, not Fashion Product Images (Small) scores. Real
 
 `src/vision/yolo_detector.py` uses the pretrained Ultralytics YOLO11n COCO model. It accepts a local image path or HTTP(S) URL and returns each detected COCO label, confidence, and bounding box in pixel coordinates. It also saves an annotated copy. The default smoke-test input is Ultralytics' public COCO `bus.jpg` sample; product images can be supplied with `--image`.
 
-**Detection test result:** [filled with actual COCO sample detections, or an explicit unavailable reason].
+**Detection test result (actual COCO sample run):** on the 810x1080 Ultralytics bus image at confidence threshold 0.25, YOLO11n found five objects: one bus (confidence 0.9402) and four people (0.8882, 0.8783, 0.8558, and 0.6219). The annotated result was saved to `models/vision/detection_outputs/predictions/bus.jpg`. This confirms the pretrained detector ran; it is not a retail product detection result.
 
 The pretrained detector's labels are general COCO objects, not the retail catalog's article categories. Its boxes are useful for demonstrating object localization, checking whether an image has a person or multiple visible objects, and illustrating catalog quality assurance. They do not prove that the model can locate every fashion product. Shelf analytics also require representative shelf imagery. A custom product detector needs real product bounding-box annotations.
 
@@ -465,12 +474,12 @@ The pretrained detector's labels are general COCO objects, not the retail catalo
 
 - Added `src/vision/transfer_learning.py`.
 - Added `src/vision/yolo_detector.py`.
-- Modified `requirements.txt` to include Ultralytics.
+- Modified `requirements.txt` to include Ultralytics and the requests helper used to cache remote images.
 - Modified `.gitignore` so product data, downloaded detector weights, and generated detection images stay out of Git.
 - Updated `README.md` and appended this Day 7 section.
 - Created `Docs/devlogs/day7.md` in easy-to-read language.
 - The Fashion-MNIST ResNet model and measured metadata are saved as `models/vision/fashion_resnet50_transfer.keras` and `models/vision/fashion_resnet50_transfer_metadata.json`.
-- YOLO weights are downloaded on demand; detection output is written under `models/vision/detection_outputs/`.
+- The YOLO weights and COCO sample already present in the repository are used by default; URL inputs and detection output are cached under `models/vision/`.
 - No real product dataset, trained catalog ResNet, or product-specific detection model is claimed in this increment.
 
 ### Challenges and learnings

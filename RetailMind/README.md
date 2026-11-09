@@ -31,6 +31,8 @@ Observed target distribution:
 - joblib
 - TensorFlow/Keras (Day 5 neural-network examples)
 - TensorFlow/Keras image utilities and `tf.data` (Day 6 vision module)
+- Ultralytics YOLO (Day 7 object detection)
+- requests (download helper for remote image inputs)
 - Python standard library
 
 The classical churn models use scikit-learn. TensorFlow/Keras is used for the separate Day 5 neural-network examples.
@@ -504,6 +506,15 @@ python -m src.vision.transfer_learning
 
 By default it trains the classification head for three epochs, fine-tunes the top 20 ResNet layers for one epoch, and uses a balanced 12,000-image subset for training, 6,000 validation images, and the 10,000 official test images. Adjust with `--head-epochs`, `--fine-tune-epochs`, `--training-limit`, and `--batch-size`. It saves the transfer model and its measured comparison/learning history under `models/vision/`.
 
+Measured on the same 10,000 Fashion-MNIST test images:
+
+| Model | Test accuracy | Test loss | Macro F1 |
+|---|---:|---:|---:|
+| Day 6 scratch CNN | 0.8940 | 0.2871 | 0.8923 |
+| Day 7 ResNet50 transfer | 0.8759 | 0.3467 | 0.8757 |
+
+The transfer model was 1.81 percentage points lower in accuracy in this run. This comparison uses the same held-out images, but it is not a perfectly controlled training comparison: Day 7 trained on 12,000 examples, while Day 6 used the full training split. The result is a measured learning experiment, not evidence that transfer learning is generally worse. The weakest ResNet class was Shirt (F1 0.6718), often confused with T-shirt/top and Coat. Training history, class metrics, and confusion matrices are in `models/vision/fashion_resnet50_transfer_metadata.json`.
+
 The separate object detector uses Ultralytics' pretrained YOLO11n model. It can try the official Ultralytics COCO bus sample by default, or accept a local image/URL:
 
 ```powershell
@@ -511,6 +522,6 @@ python -m src.vision.yolo_detector
 python -m src.vision.yolo_detector --image data/fashion-product-images-small/images/12345.jpg
 ```
 
-YOLO downloads pretrained weights when first run and saves an annotated image plus detection JSON output under `models/vision/detection_outputs/`; those generated files and downloaded weights are excluded from Git. YOLO11n's default COCO classes are general objects such as people, bags, and buses, not the catalog's `articleType` classes. Therefore a box can help find objects or flag catalog images containing people/multiple objects, but it does not by itself identify a retail taxonomy category. A real product-detection dataset with bounding-box labels is required to train or measure a product-specific detector.
+On the bundled COCO bus sample (810x1080), YOLO11n found five objects: one bus (confidence 0.9402) and four people (0.8882, 0.8783, 0.8558, and 0.6219). The annotated image is written to `models/vision/detection_outputs/predictions/bus.jpg`. Other URL inputs are cached under `models/vision/pretrained/`; generated detection output and that cache are excluded from Git. YOLO11n's default COCO classes are general objects such as people, bags, and buses, not the catalog's `articleType` classes. Therefore a box can help find objects or flag catalog images containing people/multiple objects, but it does not by itself identify a retail taxonomy category. A real product-detection dataset with bounding-box labels is required to train or measure a product-specific detector.
 
 Object detection differs from classification: classification gives a label for an image, while detection gives a label and box coordinates for each visible object. Boxes can support catalog quality checks and multi-product/shelf analysis, but actual shelf analytics need representative shelf images and validation. Detection results must not be interpreted as product-classifier accuracy.

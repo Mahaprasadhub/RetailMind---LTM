@@ -238,7 +238,9 @@ def run_transfer_learning(
     )
 
     MODEL_DIRECTORY.mkdir(parents=True, exist_ok=True)
-    model.save(MODEL_PATH)
+    inference_model = tf.keras.models.clone_model(model)
+    inference_model.set_weights(model.get_weights())
+    inference_model.save(MODEL_PATH)
     reloaded = tf.keras.models.load_model(MODEL_PATH)
     reload_labels, reload_probabilities = _predict_dataset(reloaded, test_dataset)
     reload_metrics = _evaluate_predictions(reload_labels, reload_probabilities)
@@ -311,6 +313,7 @@ def run_transfer_learning(
         "artifacts": {
             "model": MODEL_PATH.name,
             "day6_baseline_model": DAY6_MODEL_PATH.name,
+            "saved_for_inference_without_training_optimizer_state": True,
         },
     }
     METADATA_PATH.write_text(json.dumps(metadata, indent=2), encoding="utf-8")

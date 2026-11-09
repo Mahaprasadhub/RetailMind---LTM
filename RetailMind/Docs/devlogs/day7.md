@@ -27,12 +27,14 @@ The real Kaggle product photos are still missing from the project, so I reused F
 
 ### Actual run results
 
-- Day 6 CNN test accuracy on the common test images: **[actual result]**.
-- Day 7 ResNet transfer test accuracy on those same images: **[actual result]**.
-- Test loss, each training-stage history, and the confusion matrix are saved in `models/vision/fashion_resnet50_transfer_metadata.json`.
-- Interpretation: **[state which did better after observing the measured run; do not infer product-catalog performance].**
+- Day 6 CNN test accuracy on the common test images: **0.8940** (test loss 0.2871).
+- Day 7 ResNet transfer test accuracy on those same images: **0.8759** (test loss 0.3467).
+- Macro F1 was 0.8923 for Day 6 and 0.8757 for Day 7.
+- The Day 7 score was 1.81 percentage points lower. This is not a perfectly even training comparison: Day 7 used 12,000 training pictures, while Day 6 used the full training split. The models saw the same test pictures, but the result does not prove that one model type is always better.
 
-If ImageNet weights could not be downloaded or the run failed, record that clearly here rather than guessing a score.
+The head trained for all three planned epochs. Its training accuracy ended at 0.8607 and validation accuracy at 0.8637. Fine-tuning ran for one planned epoch; training accuracy was 0.8980 and validation accuracy was 0.8845. This run used fixed epoch counts, not EarlyStopping. Validation loss went down after fine-tuning, from 0.3689 to 0.3229. On the held-out test pictures, the ResNet loss was 0.3467. Shirt was the hardest class (F1 0.6718), often confused with T-shirt/top and Coat.
+
+The test loss, training history, per-class results, and confusion matrix are saved in `models/vision/fashion_resnet50_transfer_metadata.json`.
 
 ## What is object detection?
 
@@ -42,9 +44,9 @@ The new YOLO script uses Ultralytics' pretrained YOLO11n model, which recognizes
 
 ### Actual detection test
 
-- Input: **[actual test image or failure reason]**.
-- Detections: **[actual object labels and box counts, or unavailable]**.
-- Output: annotated image saved under `models/vision/detection_outputs/` when detection succeeds.
+- Input: the public 810x1080 COCO bus sample, tested with a 0.25 confidence threshold.
+- Detections: **5 total** — one bus (confidence 0.9402) and four people (0.8882, 0.8783, 0.8558, and 0.6219).
+- Output: the annotated image is saved at `models/vision/detection_outputs/predictions/bus.jpg`.
 - Product/shelf limitations: actual product photos and labeled bounding boxes are not available, so no retail-specific detection score is reported.
 
 YOLO can help with catalog quality checks and multi-object pictures. For shelf analytics, we would still need representative shelf photos and labels for product boxes. This increment does not train a custom detector.
@@ -53,9 +55,9 @@ YOLO can help with catalog quality checks and multi-object pictures. For shelf a
 
 - Added `src/vision/transfer_learning.py` for the ResNet50 Fashion-MNIST experiment and comparison with Day 6.
 - Added `src/vision/yolo_detector.py` for generic object detection and bounding boxes.
-- Added Ultralytics to `requirements.txt`.
+- Added Ultralytics and the requests download helper to `requirements.txt`.
 - Updated `.gitignore`, README, and project documentation.
-- Fashion-MNIST transfer model/results and detection output are kept in the vision model directory. Downloaded datasets and generated YOLO outputs are excluded from Git.
+- The Fashion-MNIST transfer model and result metadata are kept in the vision model directory. URL images are cached there, and generated YOLO output is excluded from Git.
 
 ## Commands used
 

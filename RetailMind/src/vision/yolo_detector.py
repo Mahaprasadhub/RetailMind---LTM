@@ -1,16 +1,33 @@
 """Run pretrained Ultralytics YOLO object detection on an image."""
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 from urllib.parse import urlparse
 
+import requests
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 VISION_DIRECTORY = PROJECT_ROOT / "models" / "vision"
-DEFAULT_WEIGHTS = "yolo11n.pt"
-DEFAULT_COCO_SAMPLE = "https://ultralytics.com/images/bus.jpg"
+PRETRAINED_DIRECTORY = VISION_DIRECTORY / "pretrained"
+DEFAULT_WEIGHTS = PROJECT_ROOT / "yolo11n.pt"
+DEFAULT_COCO_SAMPLE = PROJECT_ROOT / "bus.jpg"
 DEFAULT_OUTPUT_DIRECTORY = VISION_DIRECTORY / "detection_outputs"
+
+
+def _cache_remote_image(image_url):
+    parsed = urlparse(image_url)
+    digest = hashlib.sha256(image_url.encode("utf-8")).hexdigest()[:12]
+    filename = f"{digest}_{Path(parsed.path).name or 'image'}"
+    cached_path = PRETRAINED_DIRECTORY / filename
+    if not cached_path.is_file():
+        PRETRAINED_DIRECTORY.mkdir(parents=True, exist_ok=True)
+        response = requests.get(image_url, timeout=30)
+        response.raise_for_status()
+        cached_path.write_bytes(response.content)
+    return cached_path
 
 
 def detect_objects(
@@ -22,9 +39,10 @@ def detect_objects(
     """Return YOLO boxes and save an annotated copy without changing the source."""
     image_path = str(image_path)
     parsed = urlparse(image_path)
-    if parsed.scheme not in {"", "http", "https"}:
+    is_remote = parsed.scheme.lower() in {"http", "https"}
+    if parsed.scheme and len(parsed.scheme) > 1 and not is_remote:
         raise ValueError("image_path must be a local path or an HTTP(S) URL.")
-    if not parsed.scheme and not Path(image_path).is_file():
+    if not is_remote and not Path(image_path).is_file():
         raise FileNotFoundError(f"Image not found: {image_path}")
     if not 0.0 <= confidence_threshold <= 1.0:
         raise ValueError("confidence_threshold must be between 0 and 1.")
@@ -37,12 +55,21 @@ def detect_objects(
             "dependencies with `python -m pip install -r requirements.txt`."
         ) from error
 
-    model = YOLO(weights)
+    if is_remote:
+        image_path = str(_cache_remote_image(image_path).resolve())
+    else:
+        image_path = str(Path(image_path).resolve())
+    weights_path = Path(weights)
+    if not weights_path.is_absolute():
+        weights_path = Path.cwd() / weights_path
+    if not weights_path.is_file():
+        raise FileNotFoundError(f"YOLO weights not found: {weights_path}")
+    model = YOLO(str(weights_path.resolve()))
     results = model.predict(
         source=image_path,
         conf=confidence_threshold,
         save=True,
-        project=str(save_directory),
+        project=str(Path(save_directory).resolve()),
         name="predictions",
         exist_ok=True,
         verbose=False,
@@ -64,8 +91,8 @@ def detect_objects(
                     ],
                 }
             )
-    source_name = Path(parsed.path).name if parsed.scheme else Path(image_path).name
-    output_path = Path(save_directory) / "predictions" / source_name
+    source_name = Path(image_path).name
+    output_path = Path(save_directory).resolve() / "predictions" / source_name
     return {
         "model": Path(weights).name,
         "input_image": image_path,
@@ -86,8 +113,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--image",
-        default=DEFAULT_COCO_SAMPLE,
-        help="Local image path or HTTP(S) image URL (default: Ultralytics COCO sample).",
+        default=str(DEFAULT_COCO_SAMPLE),
+        help="Local image path or HTTP(S) image URL (default: bundled COCO sample).",
     )
     parser.add_argument("--weights", default=DEFAULT_WEIGHTS)
     parser.add_argument("--confidence", type=float, default=0.25)
