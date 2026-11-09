@@ -10,3 +10,5 @@ env/
 .DS_Store
 Thumbs.db
 /data/fashion-product-images-small/
+/models/vision/pretrained/
+/models/vision/detection_outputs/

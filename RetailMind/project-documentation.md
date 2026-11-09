@@ -436,3 +436,43 @@ The real product model trains for up to 20 epochs with batch size 32. EarlyStopp
 ### Challenges and learnings
 
 Fashion-MNIST is a small, ready-to-load learning dataset; it is not the same thing as real retail catalog photos. The Kaggle product images are external and were not included in the repository. Building and checking the pipeline is possible now, but real product accuracy and examples must wait for the real images and labels. This separation prevents teaching-demo results from being misrepresented as catalog performance.
+
+## Day 7: Transfer Learning and Object Detection
+
+### Objective
+
+Add a pretrained CNN experiment and object detection to the vision module while preserving the Day 6 scratch CNN and the churn system. Since the Kaggle Fashion Product Images data and product bounding-box labels were not available, Fashion-MNIST is used only to compare transfer learning against the Day 6 CNN, and YOLO is exercised only as a general-object COCO detector. Neither experiment is presented as real catalog performance.
+
+### Transfer-learning dataset and method
+
+`src/vision/transfer_learning.py` uses Keras Fashion-MNIST so the Day 6 classifier and Day 7 ResNet model can be evaluated on the exact same held-out 10,000 images. Grayscale images are repeated into three RGB channels, resized to 96x96, and passed through ResNet50's ImageNet preprocessing. The pretrained ResNet50 has no original classification head; a new GlobalAveragePooling, Dense(128, ReLU), Dropout(0.3), and 10-class Softmax head is attached.
+
+Initially the pretrained backbone is frozen and only the new head is trained. Next the top 20 ResNet layers are unfrozen and fine-tuned at a lower learning rate; BatchNormalization layers stay frozen for stable small-batch fine-tuning. The default run uses a balanced 12,000-image training subset, 6,000 validation images, batch size 32, three head-training epochs, and one fine-tuning epoch. It records stage training/validation loss and accuracy and compares the transferred model with the saved Day 6 CNN on identical test records. ResNet ImageNet weights may need to download the first time.
+
+**Fashion-MNIST transfer-learning run results:** [filled with actual run output after the experiment completes].
+
+These are Fashion-MNIST results, not Fashion Product Images (Small) scores. Real catalog classification still requires downloading the catalog photos and labels and rerunning training on those records.
+
+### Object detection with Ultralytics YOLO
+
+`src/vision/yolo_detector.py` uses the pretrained Ultralytics YOLO11n COCO model. It accepts a local image path or HTTP(S) URL and returns each detected COCO label, confidence, and bounding box in pixel coordinates. It also saves an annotated copy. The default smoke-test input is Ultralytics' public COCO `bus.jpg` sample; product images can be supplied with `--image`.
+
+**Detection test result:** [filled with actual COCO sample detections, or an explicit unavailable reason].
+
+The pretrained detector's labels are general COCO objects, not the retail catalog's article categories. Its boxes are useful for demonstrating object localization, checking whether an image has a person or multiple visible objects, and illustrating catalog quality assurance. They do not prove that the model can locate every fashion product. Shelf analytics also require representative shelf imagery. A custom product detector needs real product bounding-box annotations.
+
+### Saved artifacts and documentation
+
+- Added `src/vision/transfer_learning.py`.
+- Added `src/vision/yolo_detector.py`.
+- Modified `requirements.txt` to include Ultralytics.
+- Modified `.gitignore` so product data, downloaded detector weights, and generated detection images stay out of Git.
+- Updated `README.md` and appended this Day 7 section.
+- Created `Docs/devlogs/day7.md` in easy-to-read language.
+- The Fashion-MNIST ResNet model and measured metadata are saved as `models/vision/fashion_resnet50_transfer.keras` and `models/vision/fashion_resnet50_transfer_metadata.json`.
+- YOLO weights are downloaded on demand; detection output is written under `models/vision/detection_outputs/`.
+- No real product dataset, trained catalog ResNet, or product-specific detection model is claimed in this increment.
+
+### Challenges and learnings
+
+Transfer learning can reuse features learned from a large photo dataset and often needs less labeled data than training all image filters from scratch. Fine-tuning should be gentle: freeze first, then unfreeze only a small top section with a lower learning rate. Fashion-MNIST is an easy-to-run, grayscale teaching dataset, so its score alone cannot guarantee good performance on retail product photos. YOLO gives boxes and generic COCO object labels, which are different outputs from the clothing taxonomy used by catalog classification.

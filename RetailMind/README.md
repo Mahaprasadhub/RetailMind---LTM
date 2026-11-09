@@ -61,6 +61,8 @@ RetailMind/
 |       |-- __init__.py
 |       |-- fashion_mnist_cnn.py
 |       |-- product_image_loader.py
+|       |-- transfer_learning.py
+|       |-- yolo_detector.py
 |       |-- train_product_cnn.py
 |       |-- evaluate_product_cnn.py
 |       `-- predict_product.py
@@ -94,6 +96,8 @@ RetailMind/
 |   `-- vision/
 |       |-- fashion_mnist_cnn.keras
 |       |-- fashion_mnist_cnn_metadata.json
+|       |-- fashion_resnet50_transfer.keras
+|       |-- fashion_resnet50_transfer_metadata.json
 |       |-- product_cnn_v1.keras
 |       |-- product_class_mapping.json
 |       `-- product_cnn_v1_metadata.json
@@ -105,7 +109,8 @@ RetailMind/
 |       |-- day3.md
 |       |-- day4.md
 |       |-- day5.md
-|       `-- day6.md
+|       |-- day6.md
+|       `-- day7.md
 |-- .gitignore
 |-- project-documentation.md
 |-- README.md
@@ -486,3 +491,26 @@ python -m src.vision.evaluate_product_cnn
 ```
 
 Training saves the product model, class mapping, and run metadata under `models/vision/`. For a trained model, `predict_product(image_path)` returns the actual mapped category, confidence, and model version. It reports clear errors for a missing dataset, image, model, or unsupported image file. The prediction service and product model are separate from churn inference.
+
+## Day 7 — Transfer learning and object detection
+
+Day 7 adds two more vision tools inside `src/vision/`. Transfer learning starts from a ResNet50 whose visual features were learned from ImageNet, freezes those layers while a new fashion-classification head learns, then optionally fine-tunes the final backbone layers with a smaller learning rate. The saved Day 6 Fashion-MNIST CNN is evaluated on the exact same test images for comparison. Because the Kaggle product dataset is still not installed, this is a Fashion-MNIST transfer-learning experiment, **not real catalog accuracy**.
+
+The runnable demo downloads the ResNet50 ImageNet weights if needed:
+
+```powershell
+python -m src.vision.transfer_learning
+```
+
+By default it trains the classification head for three epochs, fine-tunes the top 20 ResNet layers for one epoch, and uses a balanced 12,000-image subset for training, 6,000 validation images, and the 10,000 official test images. Adjust with `--head-epochs`, `--fine-tune-epochs`, `--training-limit`, and `--batch-size`. It saves the transfer model and its measured comparison/learning history under `models/vision/`.
+
+The separate object detector uses Ultralytics' pretrained YOLO11n model. It can try the official Ultralytics COCO bus sample by default, or accept a local image/URL:
+
+```powershell
+python -m src.vision.yolo_detector
+python -m src.vision.yolo_detector --image data/fashion-product-images-small/images/12345.jpg
+```
+
+YOLO downloads pretrained weights when first run and saves an annotated image plus detection JSON output under `models/vision/detection_outputs/`; those generated files and downloaded weights are excluded from Git. YOLO11n's default COCO classes are general objects such as people, bags, and buses, not the catalog's `articleType` classes. Therefore a box can help find objects or flag catalog images containing people/multiple objects, but it does not by itself identify a retail taxonomy category. A real product-detection dataset with bounding-box labels is required to train or measure a product-specific detector.
+
+Object detection differs from classification: classification gives a label for an image, while detection gives a label and box coordinates for each visible object. Boxes can support catalog quality checks and multi-product/shelf analysis, but actual shelf analytics need representative shelf images and validation. Detection results must not be interpreted as product-classifier accuracy.
