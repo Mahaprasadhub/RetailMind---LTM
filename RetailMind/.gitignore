@@ -9,3 +9,4 @@ env/
 *.swo
 .DS_Store
 Thumbs.db
+/data/fashion-product-images-small/

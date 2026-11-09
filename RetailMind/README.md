@@ -30,6 +30,7 @@ Observed target distribution:
 - scikit-learn
 - joblib
 - TensorFlow/Keras (Day 5 neural-network examples)
+- TensorFlow/Keras image utilities and `tf.data` (Day 6 vision module)
 - Python standard library
 
 The classical churn models use scikit-learn. TensorFlow/Keras is used for the separate Day 5 neural-network examples.
@@ -55,7 +56,14 @@ RetailMind/
 |   |-- train_ensembles.py
 |   |-- mnist_demo.py
 |   |-- train_ann.py
-|   `-- predict.py
+|   |-- predict.py
+|   `-- vision/
+|       |-- __init__.py
+|       |-- fashion_mnist_cnn.py
+|       |-- product_image_loader.py
+|       |-- train_product_cnn.py
+|       |-- evaluate_product_cnn.py
+|       `-- predict_product.py
 |-- models/
 |   |-- churn_pipeline.joblib
 |   |-- churn_metrics.json
@@ -82,7 +90,13 @@ RetailMind/
 |   |-- churn_v4_metadata.json
 |   |-- churn_ann_v5.keras
 |   |-- churn_ann_preprocessor.joblib
-|   `-- churn_ann_v5_metadata.json
+|   |-- churn_ann_v5_metadata.json
+|   `-- vision/
+|       |-- fashion_mnist_cnn.keras
+|       |-- fashion_mnist_cnn_metadata.json
+|       |-- product_cnn_v1.keras
+|       |-- product_class_mapping.json
+|       `-- product_cnn_v1_metadata.json
 |-- notebooks/
 |-- Docs/
 |   `-- devlogs/
@@ -90,7 +104,8 @@ RetailMind/
 |       |-- day2.md
 |       |-- day3.md
 |       |-- day4.md
-|       `-- day5.md
+|       |-- day5.md
+|       `-- day6.md
 |-- .gitignore
 |-- project-documentation.md
 |-- README.md
@@ -428,3 +443,46 @@ result = predict(customer, model="ann")
 ```
 
 Both models return the existing prediction fields, including `prediction`, `churn_probability`, `status`, and model version/name.
+
+## RetailMind AI — Computer Vision Module (Day 6)
+
+Computer Vision helps software learn from images. A Convolutional Neural Network (CNN) processes an image in small regions, learning visual patterns such as edges, shapes, and object details before predicting a class. This module is separate from the customer churn pipeline and does not change its models or prediction service.
+
+### Fashion-MNIST demonstration
+
+`src/vision/fashion_mnist_cnn.py` uses Keras' built-in Fashion-MNIST dataset. It scales grayscale pixels to 0–1, adds the single image-channel dimension, and trains a small CNN to classify ten clothing types. It prints the actual test loss/accuracy and comparisons of actual and predicted labels for ten test images. Fashion-MNIST labels are only used for this demonstration; they are not the product catalog's category names.
+
+In the executed five-epoch run, test loss was **0.2871** and test accuracy was **0.8940**. Final training/validation accuracy was 0.8968/0.9030. In the first five sample predictions, all five actual and predicted labels matched.
+
+### Fashion Product Images (Small)
+
+The separate real-catalog classifier is prepared for the Kaggle [Fashion Product Images (Small)](https://www.kaggle.com/datasets/paramaggarwal/fashion-product-images-small) dataset. This dataset was **not present locally** when Day 6 was implemented, so no real product categories, test scores, confusion results, or example predictions are claimed yet.
+
+Download and extract the dataset so its metadata CSV (usually `styles.csv`) and `images/` folder are under:
+
+```text
+data/fashion-product-images-small/
+```
+
+The downloaded dataset folder is excluded from Git. The loader inspects the actual CSV columns and image files; it prefers `articleType`, then `subCategory`, `masterCategory`, or `category` when present. Override the actual metadata fields with `--label-column`, `--image-column`, or `--product-id-column` if needed. No category names are assumed in advance. Missing and unreadable images are counted and skipped. Duplicate image contents are detected and removed before splitting. Categories with fewer than three usable images are excluded because they cannot appear in all three splits.
+
+Images are decoded and resized to 128x128 RGB tensors and divided by 255. Images stream from disk through `tf.data`; the pipeline does not load the complete image collection into memory. A seeded per-category 70/15/15 split is used. Duplicate product identifiers and identical image hashes are checked so records do not cross training, validation, and test splits.
+
+### CNN, augmentation, and training
+
+The product CNN uses light training-time horizontal flips, rotations, zoom, and translation, followed by Conv2D(32), MaxPooling2D, Conv2D(64), MaxPooling2D, Conv2D(128), MaxPooling2D, Flatten, Dropout(0.5), Dense(128, ReLU), and a Softmax output with one unit per catalog category. Augmentation is inside the model and is active only during training; validation, test, and prediction images are not augmented. Adam, sparse categorical cross-entropy, and EarlyStopping on validation loss (patience 5, restoring the best weights) are used.
+
+After the real dataset is supplied and training completes, the script will write actual test loss/accuracy, per-category precision/recall/F1, confusion matrix, and most-confused category pairs to the metadata file. These results are not available yet because the product-image dataset is missing.
+
+### Run the vision examples
+
+From the `RetailMind` directory:
+
+```powershell
+python -m src.vision.fashion_mnist_cnn
+python -m src.vision.product_image_loader
+python -m src.vision.train_product_cnn
+python -m src.vision.evaluate_product_cnn
+```
+
+Training saves the product model, class mapping, and run metadata under `models/vision/`. For a trained model, `predict_product(image_path)` returns the actual mapped category, confidence, and model version. It reports clear errors for a missing dataset, image, model, or unsupported image file. The prediction service and product model are separate from churn inference.

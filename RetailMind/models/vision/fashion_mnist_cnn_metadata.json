@@ -1,0 +1,139 @@
+{
+  "model_version": "fashion-mnist-cnn-demo",
+  "dataset": "Keras Fashion-MNIST",
+  "class_mapping": {
+    "0": "T-shirt/top",
+    "1": "Trouser",
+    "2": "Pullover",
+    "3": "Dress",
+    "4": "Coat",
+    "5": "Sandal",
+    "6": "Shirt",
+    "7": "Sneaker",
+    "8": "Bag",
+    "9": "Ankle boot"
+  },
+  "input_shape": [
+    28,
+    28,
+    1
+  ],
+  "architecture": [
+    "Conv2D(32, 3, relu)",
+    "MaxPooling2D",
+    "Conv2D(64, 3, relu)",
+    "MaxPooling2D",
+    "Flatten",
+    "Dense(128, relu)",
+    "Dropout(0.3)",
+    "Dense(10, softmax)"
+  ],
+  "optimizer": "Adam",
+  "loss": "sparse_categorical_crossentropy",
+  "batch_size": 128,
+  "epochs_requested": 5,
+  "epochs_trained": 5,
+  "training_loss": [
+    0.6151207089424133,
+    0.3856740891933441,
+    0.3347269296646118,
+    0.3033786118030548,
+    0.2819943130016327
+  ],
+  "validation_loss": [
+    0.3875187039375305,
+    0.3300844430923462,
+    0.2980915307998657,
+    0.28909432888031006,
+    0.26874446868896484
+  ],
+  "training_accuracy": [
+    0.7771111130714417,
+    0.8605185151100159,
+    0.8778703808784485,
+    0.8883888721466064,
+    0.8968333601951599
+  ],
+  "validation_accuracy": [
+    0.8606666922569275,
+    0.8803333044052124,
+    0.8895000219345093,
+    0.8974999785423279,
+    0.902999997138977
+  ],
+  "test_loss": 0.2871321737766266,
+  "test_accuracy": 0.8939999938011169,
+  "sample_predictions": [
+    {
+      "actual_label": 9,
+      "actual_category": "Ankle boot",
+      "predicted_label": 9,
+      "predicted_category": "Ankle boot",
+      "confidence": 0.9987214207649231
+    },
+    {
+      "actual_label": 2,
+      "actual_category": "Pullover",
+      "predicted_label": 2,
+      "predicted_category": "Pullover",
+      "confidence": 0.9998700618743896
+    },
+    {
+      "actual_label": 1,
+      "actual_category": "Trouser",
+      "predicted_label": 1,
+      "predicted_category": "Trouser",
+      "confidence": 1.0
+    },
+    {
+      "actual_label": 1,
+      "actual_category": "Trouser",
+      "predicted_label": 1,
+      "predicted_category": "Trouser",
+      "confidence": 0.9999998807907104
+    },
+    {
+      "actual_label": 6,
+      "actual_category": "Shirt",
+      "predicted_label": 6,
+      "predicted_category": "Shirt",
+      "confidence": 0.7486011385917664
+    },
+    {
+      "actual_label": 1,
+      "actual_category": "Trouser",
+      "predicted_label": 1,
+      "predicted_category": "Trouser",
+      "confidence": 0.9999949932098389
+    },
+    {
+      "actual_label": 4,
+      "actual_category": "Coat",
+      "predicted_label": 4,
+      "predicted_category": "Coat",
+      "confidence": 0.9774207472801208
+    },
+    {
+      "actual_label": 6,
+      "actual_category": "Shirt",
+      "predicted_label": 6,
+      "predicted_category": "Shirt",
+      "confidence": 0.7527135610580444
+    },
+    {
+      "actual_label": 5,
+      "actual_category": "Sandal",
+      "predicted_label": 5,
+      "predicted_category": "Sandal",
+      "confidence": 0.9980644583702087
+    },
+    {
+      "actual_label": 7,
+      "actual_category": "Sneaker",
+      "predicted_label": 7,
+      "predicted_category": "Sneaker",
+      "confidence": 0.9992437362670898
+    }
+  ],
+  "model_artifact": "fashion_mnist_cnn.keras"
+}

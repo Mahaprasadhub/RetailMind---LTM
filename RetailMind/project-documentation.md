@@ -381,3 +381,58 @@ The ANN confusion matrix `[actual No/Yes, predicted No/Yes]` is `[[943, 92], [19
 ### Final conclusion
 
 The ANN learned useful patterns (its ROC-AUC was 0.8390), but at the tested threshold it missed more churners than the existing SVM models. Keep `models/churn_v4.joblib` as the production choice, while preserving the separately saved ANN for learning and further experiments. Classical models such as Random Forest and XGBoost are often strong on structured tabular data; ANNs can be useful when the data scale, complexity, and learned representations justify their added training and deployment costs. This comparison used one fixed test split and one ANN configuration; it is evidence about this experiment, not a claim that all neural networks are unsuitable for tabular data.
+
+## Day 6: CNN Image Classification
+
+### Objective
+
+Introduce image classification as a separate RetailMind module. The day includes a runnable Fashion-MNIST CNN lesson and a real product-catalog CNN pipeline that can be trained after the Fashion Product Images (Small) data is placed locally. Churn models and services remain unchanged.
+
+### Datasets and availability
+
+The Fashion-MNIST practice dataset is loaded through `tf.keras.datasets.fashion_mnist`. Its ten class names refer only to that teaching dataset.
+
+The real product classifier is designed for Kaggle's Fashion Product Images (Small): <https://www.kaggle.com/datasets/paramaggarwal/fashion-product-images-small>. The dataset was not available in `RetailMind/data/` during this implementation; only the Telco CSV was present. Therefore a real catalog category, usable image count, category count, product-CNN test result, confusion matrix, or real sample prediction cannot honestly be reported yet. The code inspects the downloaded CSV rather than assuming a label field; it prefers the actual `articleType` column if present, with `subCategory`, `masterCategory`, and `category` as fallbacks. Image and product-ID columns are also discovered from the metadata, with CLI overrides available.
+
+Download and extract the Kaggle files under `data/fashion-product-images-small/`, keeping the metadata CSV and `images/` directory together. This entire dataset directory is ignored by Git and must not be committed.
+
+### Image loading and split safety
+
+The product loader checks CSV metadata, product identifiers, category labels, and image files. It counts and skips missing or unreadable files, removes duplicate product records and duplicate image contents, and rejects duplicate image content assigned conflicting labels. It resizes RGB images to 128x128 and normalizes pixels to `[0, 1]`. `tf.data` decodes and batches the files from disk rather than loading all image arrays into RAM.
+
+A deterministic per-category 70/15/15 split uses seed 42. Product identifiers and image hashes are checked across splits to prevent the same product or image from crossing training, validation, and test. Labels with fewer than three usable images are excluded because each partition needs at least one sample for a stratified split. The held-out test data is only used for final evaluation.
+
+### CNN architecture and augmentation
+
+The Fashion-MNIST teaching CNN uses Conv2D(32), MaxPooling2D, Conv2D(64), MaxPooling2D, Flatten, Dense(128), Dropout(0.3), and a 10-class Softmax output. The model scales grayscale images to `[0, 1]`, adds the channel dimension, and uses Adam with sparse categorical cross-entropy.
+
+The product CNN takes 128x128 RGB input and uses Conv2D(32)/MaxPooling2D, Conv2D(64)/MaxPooling2D, Conv2D(128)/MaxPooling2D, Flatten, Dropout(0.5), Dense(128), and a class-count Softmax output. Training-only augmentation is embedded in the model: horizontal flip, mild rotation, zoom, and translation. Keras disables these random transforms during validation, test evaluation, and inference.
+
+### Training and evaluation
+
+Fashion-MNIST trains for five epochs by default, reports actual loss and accuracy on the official test split, and displays ten actual/predicted class pairs. The model is saved and reloaded to verify evaluation.
+
+The real product model trains for up to 20 epochs with batch size 32. EarlyStopping monitors validation loss, waits five epochs for improvement, and restores the best weights. The test set does not guide training or early stopping. The evaluation script reports test loss and accuracy, per-class precision/recall/F1, a confusion matrix, and the most frequent category confusions. Reasons for difficult categories will be discussed only after inspecting actual category scores and images.
+
+**Fashion-MNIST run result:** after five epochs (batch size 128), test loss was **0.2871** and test accuracy was **0.8940**. Final training/validation loss was 0.2820/0.2687 and accuracy was 0.8968/0.9030. The first five sample predictions matched their labels; the fifth actual `Shirt` was predicted as `Shirt` with 0.7486 confidence. The saved model was reloaded and its test metrics matched.
+
+**Real product classifier:** Not trained; the required Kaggle dataset is missing. Real category, usable-image and class counts, training/validation scores, test metrics, confusion-matrix observations, and sample prediction are all unavailable until the dataset is downloaded. No real-world performance is inferred from Fashion-MNIST.
+
+### Prediction service and files
+
+`predict_product(image_path)` loads the saved product CNN and JSON class mapping, decodes the chosen image as RGB, resizes and normalizes it exactly as during training, and returns predicted category, confidence, and version. Missing model files, invalid paths, and unreadable formats return explicit errors.
+
+- Added `src/vision/__init__.py`.
+- Added `src/vision/fashion_mnist_cnn.py`.
+- Added `src/vision/product_image_loader.py`.
+- Added `src/vision/train_product_cnn.py`.
+- Added `src/vision/evaluate_product_cnn.py`.
+- Added `src/vision/predict_product.py`.
+- Modified `.gitignore` to keep the downloaded product dataset out of Git.
+- Updated `README.md` and appended this Day 6 section.
+- Fashion-MNIST model and measured metadata are saved under `models/vision/` when its script runs.
+- The product CNN, class mapping, and product metadata are created under `models/vision/` only after real product data is available and training succeeds.
+
+### Challenges and learnings
+
+Fashion-MNIST is a small, ready-to-load learning dataset; it is not the same thing as real retail catalog photos. The Kaggle product images are external and were not included in the repository. Building and checking the pipeline is possible now, but real product accuracy and examples must wait for the real images and labels. This separation prevents teaching-demo results from being misrepresented as catalog performance.
