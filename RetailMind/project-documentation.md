@@ -485,3 +485,79 @@ The pretrained detector's labels are general COCO objects, not the retail catalo
 ### Challenges and learnings
 
 Transfer learning can reuse features learned from a large photo dataset and often needs less labeled data than training all image filters from scratch. Fine-tuning should be gentle: freeze first, then unfreeze only a small top section with a lower learning rate. Fashion-MNIST is an easy-to-run, grayscale teaching dataset, so its score alone cannot guarantee good performance on retail product photos. YOLO gives boxes and generic COCO object labels, which are different outputs from the clothing taxonomy used by catalog classification.
+
+## Day 8: Segmentation and Explainable Computer Vision
+
+### Objective and current data
+
+Day 8 connects image classification, object detection, foreground masks, background removal, and Grad-CAM in the existing vision package. It reuses the saved Day 6 Fashion-MNIST CNN and the existing Day 7 Ultralytics YOLO detector. It does not retrain either model.
+
+At implementation time, `data/` contains the Telco CSV only. The Kaggle Fashion Product Images Small directory and its metadata/image files are absent. The Day 6 model is available. The Day 7 ResNet model is present on the development machine but is deliberately ignored by Git because it is about 170 MB; a fresh clone may have its metadata but not the `.keras` weights. The YOLO `yolo11n.pt` checkpoint is available in the repository. No ground-truth product masks or product detection labels are available.
+
+The Day 6 and Day 7 classifiers were trained on Fashion-MNIST, not the retail catalog. They can demonstrate classifier inference and Grad-CAM mechanics, but their predicted fashion label and confidence are **not a validated catalog prediction**. The YOLO checkpoint recognizes COCO classes such as person and bus, not the dataset's catalog categories. The pipeline marks these limits in its output.
+
+### What segmentation does
+
+Image segmentation assigns a foreground/background value to each pixel. This increment uses OpenCV GrabCut, which estimates the two groups from image colors and a rectangle. Pixels outside the rectangle are initialized as background, while GrabCut refines likely foreground and background pixels inside it. By default, the rectangle leaves a small margin around the image. If that is not suitable, pass an explicit `(x, y, width, height)` rectangle.
+
+GrabCut is an unsupervised baseline, not a model trained on product masks. The Fashion Product Images Small dataset does not generally provide pixel-level masks. Therefore its GrabCut results are **approximate pseudo-labels**, not ground truth. Review masks manually before treating them as training data. No U-Net, supervised segmenter, or segmentation accuracy is claimed.
+
+### Background removal
+
+The background-removal function applies the binary GrabCut mask to the source image, places retained pixels on a uniform white background, and pads the image into a fixed 512x512 canvas without stretching it. It saves the generated mask separately. Source files are read-only; generated files are written under `data/processed/masks/` and `data/processed/segmented/`.
+
+### Grad-CAM
+
+Grad-CAM uses TensorFlow/Keras to measure how gradients at a model's final spatial feature layer contribute to a selected class score. It turns those values into a normalized heatmap, resizes the heatmap to the original dimensions, and saves the decoded original, color heatmap, and overlay under `data/processed/gradcam/`.
+
+The Day 6 Sequential CNN is the default because its supported Grad-CAM path has been tested. Its preprocessing is grayscale, 28x28, and pixel values scaled to `[0, 1]`, matching the saved Fashion-MNIST model. The optional Day 7 ResNet model uses its 96x96 RGB/ImageNet preprocessing and the final ResNet feature map. Grad-CAM highlights regions influential to the model output; it does not prove that the prediction is correct.
+
+### Unified interface and files
+
+`analyze_product(image_path)` in `src/vision/cv_pipeline.py` runs available components independently:
+
+- Classification and Grad-CAM use the saved Day 6 model by default. A Day 7 Keras checkpoint can be selected explicitly.
+- Object detection calls the existing `detect_objects()` from `src/vision/yolo_detector.py`; it returns only YOLO's actual COCO detections and bounding boxes.
+- Segmentation uses `segment_product()` from `src/vision/segmentation.py`.
+- Background removal uses `remove_background()` from `src/vision/background_removal.py`, reusing the generated mask.
+- Missing checkpoints or a failed component are marked unavailable with a reason; the other components can still run.
+
+New files:
+
+- `src/vision/segmentation.py`: reads images and creates/saves GrabCut masks, including optional user rectangles.
+- `src/vision/background_removal.py`: composites the foreground on white and pads it without changing aspect ratio.
+- `src/vision/gradcam.py`: loads a compatible saved classifier, matches its input preprocessing, predicts a class, and saves Grad-CAM images.
+- `src/vision/cv_pipeline.py`: combines the existing detector and classifier with segmentation, background removal, and Grad-CAM; also provides a command-line entry point.
+- `src/vision/test_day8.py`: standard-library `unittest` smoke tests using a generated sample image. It does not need the Kaggle dataset.
+
+`opencv-python` was added to `requirements.txt`; the project's existing TensorFlow requirement is reused. No new deep-learning framework or segmentation package was added. Existing Ultralytics remains the Day 7 detector dependency.
+
+### Commands
+
+Run these from the `RetailMind` directory:
+
+```powershell
+python -m pip install -r requirements.txt
+python -m src.vision.test_day8
+python -m src.vision.cv_pipeline --image bus.jpg
+```
+
+For a catalog image, after installing the Kaggle dataset under `data/fashion-product-images-small/`:
+
+```powershell
+python -m src.vision.cv_pipeline --image "data/fashion-product-images-small/images/12345.jpg"
+```
+
+If automatic GrabCut initialization misses the product, specify an image-space rectangle:
+
+```powershell
+python -m src.vision.cv_pipeline --image "data/fashion-product-images-small/images/12345.jpg" --rectangle 20 20 300 400
+```
+
+For a model that supports a Day 7 ResNet checkpoint, add `--classifier models/vision/fashion_resnet50_transfer.keras`. That checkpoint is not pushed to GitHub due to its size; if absent locally, regenerate it with `python -m src.vision.transfer_learning`. The tracked Day 6 model remains the default fallback.
+
+### Actual checks and limitations
+
+The nine automated tests passed on a generated sample image: binary mask creation, manual rectangle validation, invalid paths, GrabCut exception and empty-mask handling, background removal output dimensions, Grad-CAM output dimensions for the Day 6 and available Day 7 checkpoints, and unified response behavior with missing classifier/detector checkpoints. An additional end-to-end smoke run on the bundled COCO `bus.jpg` successfully invoked the Day 6 classifier, YOLO, GrabCut, background removal, and Grad-CAM. YOLO reported five COCO objects on that image (one bus and four people). The classifier returned `T-shirt/top` with confidence approximately `0.321` on that bus scene; this is only proof that the demo checkpoint ran and must not be interpreted as an apparel result. Visual inspection of the bus mask showed background fragments (including scene details around the bus), demonstrating why the mask needs review and why no mask-quality score is claimed.
+
+No product catalog run, product classification score, custom product detection, segmentation accuracy, or mask quality score is available because the catalog dataset and pixel-level mask annotations are missing. Generated outputs live under `data/processed/`, which is ignored by Git.

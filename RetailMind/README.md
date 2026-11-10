@@ -67,7 +67,12 @@ RetailMind/
 |       |-- yolo_detector.py
 |       |-- train_product_cnn.py
 |       |-- evaluate_product_cnn.py
-|       `-- predict_product.py
+|       |-- predict_product.py
+|       |-- segmentation.py
+|       |-- background_removal.py
+|       |-- gradcam.py
+|       |-- cv_pipeline.py
+|       `-- test_day8.py
 |-- models/
 |   |-- churn_pipeline.joblib
 |   |-- churn_metrics.json
@@ -525,3 +530,27 @@ python -m src.vision.yolo_detector --image data/fashion-product-images-small/ima
 On the bundled COCO bus sample (810x1080), YOLO11n found five objects: one bus (confidence 0.9402) and four people (0.8882, 0.8783, 0.8558, and 0.6219). The annotated image is written to `models/vision/detection_outputs/predictions/bus.jpg`. Other URL inputs are cached under `models/vision/pretrained/`; generated detection output and that cache are excluded from Git. YOLO11n's default COCO classes are general objects such as people, bags, and buses, not the catalog's `articleType` classes. Therefore a box can help find objects or flag catalog images containing people/multiple objects, but it does not by itself identify a retail taxonomy category. A real product-detection dataset with bounding-box labels is required to train or measure a product-specific detector.
 
 Object detection differs from classification: classification gives a label for an image, while detection gives a label and box coordinates for each visible object. Boxes can support catalog quality checks and multi-product/shelf analysis, but actual shelf analytics need representative shelf images and validation. Detection results must not be interpreted as product-classifier accuracy.
+
+## Day 8 — Segmentation, background removal, and explainability
+
+Day 8 connects OpenCV GrabCut segmentation, white-background catalog image generation, Grad-CAM explanations, and the existing Day 6 classifier and Day 7 YOLO detector. It does not retrain either model. The Fashion-MNIST classifier has not been trained or validated on the Kaggle catalog. The catalog dataset is not present under `data/`, so catalog accuracy is unavailable.
+
+Install the requirements and run the automated checks:
+
+```powershell
+python -m pip install -r requirements.txt
+python -m src.vision.test_day8
+```
+
+Analyze an image with the unified pipeline:
+
+```powershell
+python -m src.vision.cv_pipeline --image bus.jpg
+python -m src.vision.cv_pipeline --image "data/fashion-product-images-small/images/12345.jpg" --rectangle 20 20 300 400
+```
+
+The optional `--rectangle X Y WIDTH HEIGHT` helps GrabCut when automatic initialization misses the product. Use `--help` to see options, including the optional Day 7 classifier checkpoint. The Day 6 CNN is the default explainable classifier; its image is converted to grayscale, resized to 28x28, and scaled to `[0, 1]`, matching its Fashion-MNIST input. The output also states the classifier's training dataset and that it is not catalog-validated.
+
+GrabCut does not learn a mask from labeled training examples. It estimates foreground/background from the image and a rectangle, so the resulting masks are approximate pseudo-labels that should be reviewed before reuse. No pixel-level ground-truth masks are in the available dataset; no supervised segmentation model or segmentation accuracy is claimed.
+
+Generated files go under `data/processed/` (`masks/`, `segmented/`, `gradcam/`, and detection output). The original image is never overwritten, and this generated directory is ignored by Git.

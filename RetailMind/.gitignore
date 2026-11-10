@@ -10,6 +10,7 @@ env/
 .DS_Store
 Thumbs.db
 /data/fashion-product-images-small/
+/data/processed/
 /models/vision/pretrained/
 /models/vision/detection_outputs/
 /models/vision/fashion_resnet50_transfer.keras
