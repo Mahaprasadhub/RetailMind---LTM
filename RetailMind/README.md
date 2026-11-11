@@ -554,3 +554,248 @@ The optional `--rectangle X Y WIDTH HEIGHT` helps GrabCut when automatic initial
 GrabCut does not learn a mask from labeled training examples. It estimates foreground/background from the image and a rectangle, so the resulting masks are approximate pseudo-labels that should be reviewed before reuse. No pixel-level ground-truth masks are in the available dataset; no supervised segmentation model or segmentation accuracy is claimed.
 
 Generated files go under `data/processed/` (`masks/`, `segmented/`, `gradcam/`, and detection output). The original image is never overwritten, and this generated directory is ignored by Git.
+
+## Day 9 — RNN / LSTM Demand Forecasting
+
+Continue developing my existing RetailMind AI repository. This is Day 9 of a 35-day incremental project. Do not create a separate project or replace previous implementations.
+
+### Main objective
+
+Build an LSTM-based time-series forecasting module that predicts future product demand for individual stores.
+
+Primary dataset:
+[https://www.kaggle.com/competitions/demand-forecasting-kernels-only](https://www.kaggle.com/competitions/demand-forecasting-kernels-only)
+
+Alternative dataset:
+[https://www.kaggle.com/c/rossmann-store-sales](https://www.kaggle.com/c/rossmann-store-sales)
+
+Prefer Store Item Demand Forecasting because it provides daily sales for store-item combinations.
+
+### Strict library requirements
+
+Use only the libraries taught for this increment:
+
+- TensorFlow / Keras
+- pandas
+
+Python standard-library modules are allowed.
+
+Do not introduce NumPy directly, scikit-learn, matplotlib, seaborn, Prophet, statsmodels, PyTorch, or other new third-party libraries.
+
+TensorFlow may use its own internal dependencies. Do not add unnecessary packages.
+
+For visualisation, create an SVG predicted-versus-actual chart using Python standard-library file and string operations, or provide an equivalent CSV output if SVG generation is not practical. Do not install matplotlib.
+
+### Task 1: Inspect the existing project
+
+Before writing code:
+
+- Inspect the existing RetailMind directory structure.
+- Identify existing requirements.txt and project-documentation.md.
+- Check whether TensorFlow and pandas are installed.
+- Locate the downloaded dataset, if available.
+- Inspect the dataset's actual columns, date range, missing values, duplicates, and sales distribution.
+- Preserve all Day 1–8 files and functionality.
+- Do not overwrite existing models.
+
+Do not assume dataset paths or columns without checking them.
+
+If the dataset is missing, create the data-loading module and provide clear instructions to download and place the dataset. Do not fabricate data or training results.
+
+### Task 2: Load and prepare the sales dataset
+
+For Store Item Demand Forecasting, expect columns similar to:
+
+- date
+- store
+- item
+- sales
+
+Verify these columns before processing.
+
+Requirements:
+
+- Parse date correctly.
+- Sort records chronologically.
+- Check duplicate store-item-date records.
+- Aggregate duplicate records only when justified.
+- Inspect missing values.
+- Inspect negative or unusual sales values without silently deleting them.
+- Ensure the time series is daily.
+- Preserve each store-item combination as an independent time series.
+- Do not mix sales from different stores or products.
+- Handle missing dates carefully. Do not automatically assume every missing date means zero sales without documenting the dataset assumption.
+- Create a clean daily time-series representation.
+
+For Rossmann, inspect its different schema and adapt the loader. Do not assume its data has an item column.
+
+### Task 3: Exploratory analysis
+
+Use pandas to produce:
+
+- Total sales by date.
+- Sales by store.
+- Sales by item.
+- Date range.
+- Number of stores and products.
+- Missing date checks.
+- Basic sales statistics.
+- Trend and seasonality observations where visible.
+
+Save useful summary tables as CSV files.
+
+Do not generate invented conclusions or metrics.
+
+### Task 4: Convert time series into supervised learning windows
+
+Implement a reusable sliding-window function.
+
+Example:
+
+Look-back = 7 days.
+
+Input:
+Previous seven daily sales observations.
+
+Target:
+Next day's sales.
+
+Illustration:
+
+[20, 25, 22, 30, 35, 40, 38] -> predict next day's sales.
+
+Requirements:
+
+- Make look-back configurable.
+- Do not allow a window to cross from one store-item series into another.
+- Maintain chronological ordering.
+- Create training, validation, and test windows.
+- Ensure each target belongs to its correct chronological split.
+- Historical observations before a validation or test target may be used as its look-back context, but no future observations may enter an input window.
+- Avoid random train-test splitting.
+
+### Task 5: Scaling and leakage prevention
+
+Scale sales values before training.
+
+Requirements:
+
+- Fit scaling parameters using training-period sales observations only.
+- Apply the same fitted scaling parameters to validation and test data.
+- Never fit a scaler on the complete dataset.
+- Preserve scaling parameters for inference.
+- Inverse-transform predictions before calculating final MAE and RMSE.
+- Document the scaling method and parameters.
+
+Use pandas and Python standard-library functionality for scaler handling if possible. Do not introduce scikit-learn.
+
+### Task 6: Build the LSTM model
+
+Build an LSTM model using TensorFlow/Keras.
+
+Suggested architecture:
+
+- Input: look-back sequence with one sales feature.
+- LSTM layer: 64 units.
+- Dropout: 0.2 if appropriate.
+- Dense layer: 32 units with ReLU.
+- Output layer: Dense(1).
+
+Use:
+
+- Adam optimizer.
+- Mean Squared Error training loss.
+- MAE as an additional training metric.
+- A reasonable configurable epoch count and batch size.
+- Early stopping using validation loss, restoring best weights.
+
+Keep the model configuration documented and configurable.
+
+The model should be trained on sequences from multiple store-item series while ensuring windows never cross series boundaries.
+
+If the dataset is too large for available memory, support configurable series sampling or chunked preprocessing. Record which stores/items were used. Do not silently train on an arbitrary small subset and describe it as the full dataset.
+
+### Task 7: Chronological evaluation
+
+Use a time-based split.
+
+- Training: earlier observations.
+- Validation: the period immediately after training.
+- Test: the most recent weeks.
+
+Choose and document explicit date boundaries based on the actual dataset.
+
+Use validation for model selection and early stopping.
+
+Keep the final test period untouched until model decisions are complete.
+
+Evaluate the LSTM on the final test period using:
+
+1. MAE — Mean Absolute Error.
+2. RMSE — Root Mean Squared Error.
+
+Calculate both in original sales units, not scaled units.
+
+Also create a simple naive baseline:
+
+Predict the next period's demand using the most recent observed sales value.
+
+Compare the LSTM against this baseline using the same test records.
+
+Do not claim the LSTM is better unless the actual test metrics support that conclusion.
+
+### Task 8: Predicted versus actual visualisation
+
+Create a predicted-versus-actual comparison for a few representative store-item combinations.
+
+Requirements:
+
+- Keep dates in chronological order.
+- Show actual and predicted sales.
+- Make it easy to identify forecast errors.
+- Generate an SVG chart using Python standard-library operations, without matplotlib or other plotting libraries.
+- Also save the underlying actual-versus-predicted values as CSV.
+
+If SVG output cannot be generated reliably, provide the CSV and clearly document the limitation.
+
+### Task 9: Save the forecasting model
+
+Save the trained Keras model under:
+
+`models/demand/lstm_demand_v1.keras`
+
+Also save:
+
+- Scaling parameters.
+- Look-back window.
+- Feature configuration.
+- Training date range.
+- Validation date range.
+- Test date range.
+- Dataset name.
+- Series included.
+- Model architecture and hyperparameters.
+- Actual evaluation metrics.
+- Training configuration.
+
+Use a JSON metadata file alongside the model.
+
+Do not commit the raw dataset or large unnecessary generated files.
+
+### Task 10: Create a reusable demand forecasting module
+
+Create a reusable function similar to:
+
+`forecast_demand(store_id, item_id, historical_sales, horizon=1)`
+
+It should:
+
+- Load the saved model and scaling metadata.
+- Validate the supplied historical sales.
+- Require sufficient history for the look-back window.
+- Apply the same scaling used during training.
+- Generate the requested forecast where supported.
+- Inverse-transform the predicted sales.
+- Return a structured result with store ID, item ID, forecast horizon, predicted demand, and model version.
+
+For this increment, support one-step-ahead forecasting as the reliable core. If supporting multiple future steps, use recursive forecasting and clearly document that later steps depend on earlier predictions.
