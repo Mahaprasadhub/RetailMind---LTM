@@ -799,3 +799,37 @@ It should:
 - Return a structured result with store ID, item ID, forecast horizon, predicted demand, and model version.
 
 For this increment, support one-step-ahead forecasting as the reliable core. If supporting multiple future steps, use recursive forecasting and clearly document that later steps depend on earlier predictions.
+
+## Day 10 — Seq2Seq and Attention Demand Forecasting
+
+Day 10 adds a 14-day encoder-decoder forecast beside Day 9. The encoder reads the previous 30 daily sales values and their calendar features. The decoder receives future calendar inputs and emits one sales estimate for each of the next 14 days. Additive attention scores all 30 encoder outputs for every decoder day, then combines the weighted history with the decoder state. Those weights are exposed for inspection; they are an interpretability aid, not a causal explanation.
+
+### Data and validation
+
+The loader supports the existing Store Item Demand schema (`date`, `store`, `item`, `sales`) and Rossmann (`Date`, `Store`, `Sales`), including optional Rossmann `store.csv` metadata. Rossmann `Promo`, `SchoolHoliday`, and `StateHoliday`, when present, are decoder calendar features; future predictions therefore require the caller to supply these values. Day of week and cyclic month features are derived from dates. Known closed Rossmann rows with missing sales are assigned zero; other missing sales are dropped with a warning. Existing zero sales are retained. The loader does not fill missing dates with zero: windows crossing a date gap are excluded.
+
+All stores (and items where present) are separate series. A shared 80/20 chronological date boundary is used. The MinMax scaler is fit only from sales on or before that boundary. Training windows are capped at 64 per series with deterministic even spacing to control memory; the cap is stored in model metadata. Validation forecasts are non-overlapping 14-day windows after the split. Validation is used for early stopping and comparison; there is no separate final test metric in this increment.
+
+### Architecture, training, and fair baseline
+
+The encoder is an LSTM with 64 units and returns its sequence and hidden states. A 64-unit LSTM decoder initializes from the encoder states. Additive attention produces a 14-by-30 weight matrix, and a dense output predicts each horizon step. Training uses Adam, mean squared error, MAE tracking, and early stopping on validation loss with best-model checkpointing.
+
+The comparison baseline is the Day 9 LSTM architecture trained one step at a time on the same series, training dates, validation dates, and sales scaler. Its validation forecast is rolled forward recursively for 14 days, so later baseline steps depend on earlier baseline predictions. Both models are scored on the same validation dates with MAE, RMSE, and MAPE; zero actuals are excluded from the MAPE denominator.
+
+### Run the pipeline
+
+From the `RetailMind` directory, put Rossmann `train.csv` and optional `store.csv` in `data/`, or put a compatible Store Item Demand CSV named `train.csv` there. The Day 9 dataset and pipeline are not replaced.
+
+```powershell
+python -m src.demand.train_seq2seq
+python -m src.demand.evaluate_seq2seq
+python -m unittest tests.test_day10_demand -v
+```
+
+For custom paths, call `train_seq2seq(dataset_path=..., store_path=...)` and `evaluate_seq2seq(dataset_path=..., store_path=...)` from Python. The reusable `forecast_demand_14(store_id, historical_sales, future_calendar=None, item_id=None)` function takes a pandas DataFrame with `date` and `sales` for at least 30 consecutive days, and returns 14 dates, predicted sales, and attention weights. Supply 14 future calendar rows when the model was trained with Rossmann promo/holiday inputs.
+
+### Outputs and current results
+
+Training saves `models/demand/day10/seq2seq_attention.keras`, the compatible `day9_lstm_baseline.keras`, and `seq2seq_attention_metadata.json`. Evaluation writes `model_comparison.csv`, `evaluation_metrics.json`, `actual_vs_predicted.csv`, `attention_heatmap.svg`, `actual_vs_predicted.svg`, `forecast.svg`, and `training_loss.svg` under `data/processed/day10/`. Generated models and outputs are ignored by Git; raw datasets should not be committed.
+
+No Rossmann or Store Item Demand CSV is currently present in this checkout, so no real-data training run or real evaluation metrics are available. The Day 10 tests use a temporary generated fixture only to validate shapes, normalized attention, Rossmann preprocessing, model save/load, evaluation output generation, and inference; those fixture metrics are not reported as project results.

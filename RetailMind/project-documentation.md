@@ -806,3 +806,62 @@ It should:
 - Return a structured result with store ID, item ID, forecast horizon, predicted demand, and model version.
 
 For this increment, support one-step-ahead forecasting as the reliable core. If supporting multiple future steps, use recursive forecasting and clearly document that later steps depend on earlier predictions.
+
+## Day 10 — Seq2Seq and Attention Demand Forecasting
+
+### Goal and preserved behavior
+
+Day 10 extends `src/demand/` with an encoder-decoder LSTM that forecasts 14 days from 30 days of history. Day 9 source, saved-model paths, and its one-step inference API remain in place. The Day 10 model and baseline have their own `models/demand/day10/` directory; generated output is isolated under `data/processed/day10/`.
+
+### Data loading and features
+
+`src/demand/prepare_sequences.py` accepts either Store Item Demand (`date`, `store`, `item`, `sales`) or Rossmann (`Date`, `Store`, `Sales`) tables. Rossmann `store.csv` is merged by the store key when available, with a many-to-one validation and duplicate-key check; its store columns are retained as metadata. Day-of-week and cyclic month features are derived from dates. Available `Promo`, `SchoolHoliday`, and `StateHoliday` values are included as known calendar features. At inference, the caller must provide these future values for all 14 dates when those features were used for training.
+
+Sales are numeric and dates are normalized and sorted. Duplicate daily series records are summed, missing dates are not interpreted as zero, and windows crossing any missing date are skipped. Existing zero-sales and closed-day records remain. When Rossmann marks a row closed but sales are missing, sales are set to zero; other missing sales rows are dropped with a warning. Negative values are retained and reported for inspection.
+
+The loader uses store-item groups when an `item` column exists and store groups otherwise. Every generated encoder/decoder/target sequence stays inside one group. Input features contain scaled sales plus calendar values; decoder inputs contain future calendar values, never future sales. The model predicts the next 14 actual sales values.
+
+### Split, scaling, and sequence sampling
+
+One global chronological 80/20 date boundary is shared by every store. Training windows have all target dates at or before the boundary. Validation windows have all target dates after it and are spaced 14 days apart per series to avoid overlapping validation forecasts. Historical context may precede the boundary, but no validation target enters training.
+
+The min-max sales scaler is fitted from raw observations dated on or before the boundary only. It is reused for both networks and inverted before metric calculation. To keep preprocessing bounded on large retail data, training windows use deterministic even spacing capped at 64 per series by default. This is explicit in the training metadata, rather than describing a subset as full-window training. The one-step comparison model is capped at 128 training and validation windows per series.
+
+### Model and attention
+
+The encoder is a 64-unit LSTM returning all 30 hidden outputs plus its final hidden and cell states. A 64-unit decoder LSTM processes 14 future calendar feature rows, initialized with the encoder states. Additive attention projects encoder and decoder outputs, applies a tanh score network and a softmax over the 30 history positions. It returns context vectors and weights shaped `(batch, 14, 30)`. Concatenated context and decoder outputs feed a dense sales output for each forecast day.
+
+Training uses Adam, mean squared error, MAE, early stopping on validation loss (patience 5 with best weights), and a best-validation-loss checkpoint. The loss chart is written as SVG with no plotting-library dependency. Custom attention is registered as a serializable Keras layer so the saved `.keras` model can be reloaded.
+
+### Day 9 comparison and metrics
+
+The repository currently has no trained Day 9 demand-model artifact or demand CSV. For a meaningful same-source comparison, the Day 10 training command trains a compatible model using the existing Day 9 LSTM architecture on the same store series, the same chronological cutoff, and the same training-only scaler. That one-step model is rolled forward recursively for 14 days; subsequent predicted values become later inputs. Both networks are measured on precisely the same non-overlapping validation targets.
+
+Reported metrics are MAE, RMSE, and MAPE in original sales units. MAPE skips zero actuals and is null when all actual values are zero. No model is called better unless real-data metrics establish that. This checkout has no Rossmann `train.csv`/`store.csv` or Store Item Demand CSV, so real evaluation metrics are pending; the pipeline fails clearly rather than inventing results.
+
+### Visualization and output files
+
+The standard-library SVG writers create:
+
+- `attention_heatmap.svg`: mean validation attention, with forecast day on Y and 30 historical days on X.
+- `actual_vs_predicted.svg`: actual and Seq2Seq predictions for one validation window.
+- `forecast.svg`: Day 9 recursive and Day 10 outputs for the same forecast window.
+- `training_loss.svg`: training and validation loss.
+
+The evaluation also saves `actual_vs_predicted.csv`, `model_comparison.csv`, and `evaluation_metrics.json`. The model directory contains `seq2seq_attention.keras`, `day9_lstm_baseline.keras`, and `seq2seq_attention_metadata.json`. Model and generated output directories are ignored by Git; do not commit the raw dataset.
+
+### Commands and reusable inference
+
+Place Rossmann files (`data/train.csv`, optional `data/store.csv`) or a compatible Store Item Demand CSV (`data/train.csv`) in the data directory, then run from the project root:
+
+```powershell
+python -m src.demand.train_seq2seq
+python -m src.demand.evaluate_seq2seq
+python -m unittest tests.test_day10_demand -v
+```
+
+For explicit input paths, use `train_seq2seq(dataset_path=..., store_path=...)` and `evaluate_seq2seq(dataset_path=..., store_path=...)`. The reusable `forecast_demand_14` accepts a `store_id`, a dated pandas history DataFrame containing at least 30 consecutive rows with `date` and `sales`, and optional 14-row `future_calendar` data. It returns ISO forecast dates, 14 predictions, and per-forecast-day attention weights. Rossmann models with promo/holiday inputs require those future calendar columns; no unknown calendar values are silently fabricated.
+
+### Verification and limitations
+
+`tests/test_day10_demand.py` checks the `(batch, 14, 1)` output, `(batch, 14, 30)` attention shape and normalized weights, independent series windows, Rossmann store metadata and closed-day treatment, one-epoch training, model save/load, metric and visualization generation, and 14-day inference. The test data is temporary and is only a mechanics fixture, not evidence of demand-model performance. Real-data training and evaluation remain unverified until the dataset is supplied.

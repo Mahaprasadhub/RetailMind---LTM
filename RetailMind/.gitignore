@@ -14,3 +14,5 @@ Thumbs.db
 /models/vision/pretrained/
 /models/vision/detection_outputs/
 /models/vision/fashion_resnet50_transfer.keras
+/models/demand/day10/
+/data/processed/day10/
